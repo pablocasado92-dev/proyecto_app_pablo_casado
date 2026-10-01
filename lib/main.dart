@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 
 // 1. IMPORTACIONES DE FIREBASE
 import 'package:firebase_core/firebase_core.dart';
@@ -26,6 +27,16 @@ void main() async {
   runApp(MyApp(showOnboarding: !seenOnboarding));
 }
 
+class MyCustomScrollBehavior extends MaterialScrollBehavior {
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.trackpad,
+        PointerDeviceKind.stylus,
+      };
+}
+
 class MyApp extends StatelessWidget {
   final bool showOnboarding;
 
@@ -36,6 +47,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Proyecto App Pablo Casado',
       debugShowCheckedModeBanner: false,
+      scrollBehavior: MyCustomScrollBehavior(),
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
