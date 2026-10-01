@@ -8,7 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart'; // Paquete para la base d
 import 'package:shared_preferences/shared_preferences.dart';
 
 // Importación de la pantalla de Onboarding
-import 'views/OnboardingScreen.dart';
+import 'views/onboarding_screen.dart';
 
 // 2. CONVERTIR main() EN ASÍNCRONA (async)
 void main() async {
