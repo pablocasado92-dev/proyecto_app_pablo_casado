@@ -7,8 +7,11 @@ import 'firebase_options.dart'; // Archivo generado por flutterfire configure
 import 'package:cloud_firestore/cloud_firestore.dart'; // Paquete para la base de datos
 import 'package:shared_preferences/shared_preferences.dart';
 
-// Importación de la pantalla de Onboarding
+// Importación de pantallas
+import 'views/splash_screen.dart';
 import 'views/onboarding_screen.dart';
+import 'views/login_screen.dart';
+import 'views/register_screen.dart';
 
 // 2. CONVERTIR main() EN ASÍNCRONA (async)
 void main() async {
@@ -20,11 +23,7 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // 5. COMPROBAR SI YA SE HA VISTO EL ONBOARDING
-  final prefs = await SharedPreferences.getInstance();
-  final bool seenOnboarding = prefs.getBool('has_seen_onboarding') ?? false;
-
-  runApp(MyApp(showOnboarding: !seenOnboarding));
+  runApp(const MyApp());
 }
 
 class MyCustomScrollBehavior extends MaterialScrollBehavior {
@@ -38,9 +37,7 @@ class MyCustomScrollBehavior extends MaterialScrollBehavior {
 }
 
 class MyApp extends StatelessWidget {
-  final bool showOnboarding;
-
-  const MyApp({super.key, required this.showOnboarding});
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -52,9 +49,16 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: showOnboarding 
-          ? const OnboardingScreen() 
-          : const MyHomePage(title: 'Flutter Demo Home Page'),
+      // La app siempre arranca en la Splash Screen, que evaluará las rutas
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const SplashScreen(),
+        '/splash': (context) => const SplashScreen(),
+        '/onboarding': (context) => const OnboardingScreen(),
+        '/login': (context) => const LoginScreen(),
+        '/register': (context) => const RegisterScreen(),
+        '/home': (context) => const MyHomePage(title: 'Flutter Demo Home Page'),
+      },
     );
   }
 }
