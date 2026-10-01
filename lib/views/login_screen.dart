@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../main.dart';
 import '../data/data_holder.dart';
 import 'register_screen.dart';
 
@@ -47,13 +46,8 @@ class _LoginScreenState extends State<LoginScreen> {
           _isLoading = false;
         });
 
-        // Navegar a la pantalla principal tras el inicio de sesión exitoso
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const MyHomePage(title: 'Flutter Demo Home Page'),
-          ),
-        );
+        // Navegar a la HomeView tras el inicio de sesión exitoso
+        Navigator.pushReplacementNamed(context, '/home');
       } on FirebaseAuthException catch (e) {
         setState(() {
           _isLoading = false;

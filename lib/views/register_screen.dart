@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../main.dart';
 import '../data/data_holder.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -59,12 +58,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           const SnackBar(content: Text('¡Registro exitoso en Firebase!')),
         );
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const MyHomePage(title: 'Flutter Demo Home Page'),
-          ),
-        );
+        Navigator.pushReplacementNamed(context, '/home');
       } on FirebaseAuthException catch (e) {
         setState(() {
           _isLoading = false;
