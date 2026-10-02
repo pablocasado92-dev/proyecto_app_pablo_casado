@@ -13,7 +13,7 @@ import 'views/register_screen.dart';
 import 'views/home_view.dart';
 
 // 2. CONVERTIR main() EN ASÍNCRONA (async)
-void main() async {
+Future<void> main() async {
   // 3. ASEGURAR QUE FLUTTER ESTÉ INICIALIZADO
   WidgetsFlutterBinding.ensureInitialized();
 
