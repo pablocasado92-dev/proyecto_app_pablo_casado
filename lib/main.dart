@@ -1,30 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 
-// 1. IMPORTACIONES DE FIREBASE
+// Importaciones de Firebase
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart'; // Archivo generado por flutterfire configure
+import 'firebase_options.dart'; // Opciones de configuración generadas por FlutterFire CLI
 
-// Importación de pantallas
+// Importación de las vistas de la aplicación
 import 'views/splash_screen.dart';
 import 'views/onboarding_screen.dart';
 import 'views/login_screen.dart';
 import 'views/register_screen.dart';
 import 'views/home_view.dart';
 
-// 2. CONVERTIR main() EN ASÍNCRONA (async)
+/// ============================================================================
+/// PUNTO DE ENTRADA PRINCIPAL DE LA APLICACIÓN
+/// ============================================================================
+/// La función main devuelve un `Future<void>` y es asíncrona (async) para permitir
+/// la inicialización previa de los servicios de Flutter y Firebase mediante await.
 Future<void> main() async {
-  // 3. ASEGURAR QUE FLUTTER ESTÉ INICIALIZADO
+  // 1. Garantizar que la infraestructura de widgets de Flutter está inicializada
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 4. INICIALIZAR FIREBASE EN TU APLICACIÓN
+  // 2. Inicializar la conexión con Firebase utilizando las opciones del entorno
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  // 3. Lanzar la aplicación principal
   runApp(const MyApp());
 }
 
+/// Permite el desplazamiento (drag) mediante ratón, trackpad, touch y stylus
+/// en todas las plataformas (útil para pruebas en navegador y escritorio)
 class MyCustomScrollBehavior extends MaterialScrollBehavior {
   @override
   Set<PointerDeviceKind> get dragDevices => {
@@ -35,6 +42,7 @@ class MyCustomScrollBehavior extends MaterialScrollBehavior {
       };
 }
 
+/// Widget raíz de la aplicación
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -48,8 +56,11 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      // La app siempre arranca en la Splash Screen, que evaluará las rutas
+      
+      // La app arranca siempre en la ruta raíz '/', donde la SplashScreen evalúa la navegación
       initialRoute: '/',
+      
+      // TABLA DE RUTAS NOMBRADAS DE LA APLICACIÓN
       routes: {
         '/': (context) => const SplashScreen(),
         '/splash': (context) => const SplashScreen(),

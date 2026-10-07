@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../data/data_holder.dart';
 
+/// ============================================================================
+/// BLOQUE 3: PANTALLA DE REGISTRO DE USUARIOS (RegisterScreen)
+/// ============================================================================
+/// Esta vista permite crear una nueva cuenta de usuario en Firebase Authentication,
+/// capturando nombre completo, correo electrónico y contraseña con validaciones.
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -10,17 +15,23 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  // Clave global para validaciones de formulario
   final _formKey = GlobalKey<FormState>();
+
+  // Controladores de texto para los campos del formulario
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+
+  // Estados locales para la visibilidad de contraseña y carga
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
 
   @override
   void dispose() {
+    // Liberación de recursos de controladores de texto
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -28,23 +39,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
+  /// Procesa el registro de un nuevo usuario en Firebase Authentication
   Future<void> _handleRegister() async {
+    // 1. Validar que el formulario sea correcto
     if (_formKey.currentState!.validate()) {
       setState(() {
-        _isLoading = true;
+        _isLoading = true; // Activar el indicador de carga
       });
 
       try {
-        // Registro real con Firebase Authentication
+        // 2. Crear el nuevo usuario en Firebase Authentication
         UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
 
-        // Actualizar el nombre de usuario (DisplayName) en Firebase Auth
+        // 3. Guardar el nombre completo (displayName) en el perfil de Firebase Auth
         await userCredential.user?.updateDisplayName(_nameController.text.trim());
 
-        // Guardar datos en DataHolder global
+        // 4. Guardar los datos en el DataHolder global para compartirlos en memoria
         DataHolder().userName = _nameController.text.trim();
         DataHolder().userEmail = _emailController.text.trim();
 
@@ -54,12 +67,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
           _isLoading = false;
         });
 
+        // 5. Notificar éxito y navegar a la pantalla principal (HomeView)
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('¡Registro exitoso en Firebase!')),
         );
 
         Navigator.pushReplacementNamed(context, '/home');
       } on FirebaseAuthException catch (e) {
+        // Captura de errores específicos devueltos por el servidor de Firebase Auth
         setState(() {
           _isLoading = false;
         });
@@ -80,6 +95,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
         );
       } catch (e) {
+        // Captura de otros errores imprevistos
         setState(() {
           _isLoading = false;
         });
@@ -108,6 +124,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // Icono superior
                   const Icon(
                     Icons.person_add_alt_1_rounded,
                     size: 80,
@@ -133,7 +150,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  // Campo Nombre
+                  
+                  // Campo de Texto: Nombre Completo
                   TextFormField(
                     controller: _nameController,
                     decoration: InputDecoration(
@@ -151,7 +169,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  // Campo Email
+                  
+                  // Campo de Texto: Correo Electrónico
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
@@ -173,7 +192,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  // Campo Contraseña
+                  
+                  // Campo de Texto: Contraseña
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
@@ -207,7 +227,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  // Campo Confirmar Contraseña
+                  
+                  // Campo de Texto: Confirmar Contraseña
                   TextFormField(
                     controller: _confirmPasswordController,
                     obscureText: _obscureConfirmPassword,
@@ -241,7 +262,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                   ),
                   const SizedBox(height: 24),
-                  // Botón de Registro
+                  
+                  // Botón Principal de Registro
                   ElevatedButton(
                     onPressed: _isLoading ? null : _handleRegister,
                     style: ElevatedButton.styleFrom(

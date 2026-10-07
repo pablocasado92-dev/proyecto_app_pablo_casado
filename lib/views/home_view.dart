@@ -2,34 +2,46 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../data/data_holder.dart';
 
+/// ============================================================================
+/// BLOQUE 5: PANTALLA PRINCIPAL (HomeView)
+/// ============================================================================
+/// Esta vista actúa como el panel de control del usuario autenticado.
+/// Muestra la información del perfil obtenida de Firebase Auth o DataHolder,
+/// y ofrece la opción de cerrar sesión de forma segura.
 class HomeView extends StatelessWidget {
   const HomeView({super.key});
 
+  /// Realiza el cierre de sesión del usuario
   Future<void> _signOut(BuildContext context) async {
-    // Cerrar sesión en Firebase Authentication
+    // 1. Cerrar la sesión activa en Firebase Authentication
     await FirebaseAuth.instance.signOut();
     
-    // Limpiar datos del DataHolder
+    // 2. Limpiar los datos almacenados en el DataHolder global
     DataHolder().clearData();
 
     if (!context.mounted) return;
 
-    // Navegar al Login y limpiar el historial de navegación
+    // 3. Redirigir al Login eliminando todo el historial de navegación previa
     Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
   }
 
   @override
   Widget build(BuildContext context) {
-    // Obtener datos del usuario actual (desde Firebase Auth o DataHolder)
+    // 1. Obtener la sesión activa de Firebase Auth si existe
     final User? firebaseUser = FirebaseAuth.instance.currentUser;
-    final String userEmail = firebaseUser?.email ?? (DataHolder().userEmail.isNotEmpty ? DataHolder().userEmail : 'Invitado');
-    final String userName = firebaseUser?.displayName ?? (DataHolder().userName.isNotEmpty ? DataHolder().userName : 'Usuario');
+    
+    // 2. Recuperar email y nombre (priorizando Firebase y fallback al DataHolder)
+    final String userEmail = firebaseUser?.email ?? 
+        (DataHolder().userEmail.isNotEmpty ? DataHolder().userEmail : 'Invitado');
+    final String userName = firebaseUser?.displayName ?? 
+        (DataHolder().userName.isNotEmpty ? DataHolder().userName : 'Usuario');
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Panel Principal (Home View)'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
+          // Botón de cerrar sesión en la barra superior
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Cerrar sesión',
@@ -44,7 +56,8 @@ class HomeView extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 20),
-              // Tarjeta de perfil del usuario
+              
+              // Tarjeta visual con los datos del usuario logueado
               Card(
                 elevation: 4,
                 shape: RoundedRectangleBorder(
@@ -84,6 +97,7 @@ class HomeView extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 32),
+              
               const Text(
                 '¡Bienvenido a tu HomeView!',
                 textAlign: TextAlign.center,
@@ -104,7 +118,8 @@ class HomeView extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              // Botón de cerrar sesión
+              
+              // Botón inferor para cerrar sesión
               ElevatedButton.icon(
                 onPressed: () => _signOut(context),
                 icon: const Icon(Icons.logout),

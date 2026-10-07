@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'login_screen.dart';
 
+/// ============================================================================
+/// BLOQUE 2: PANTALLA DE INTRODUCCIÓN / ONBOARDING (OnboardingScreen)
+/// ============================================================================
+/// Esta vista muestra 3 tarjetas deslizables de bienvenida la primera vez que
+/// se abre la aplicación. Guarda una marca en SharedPreferences al finalizar
+/// o al pulsar "Saltar", asegurando que no vuelva a aparecer en inicios posteriores.
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -10,9 +15,13 @@ class OnboardingScreen extends StatefulWidget {
 }
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
+  // Controlador del PageView para gestionar el desplazamiento entre páginas
   final PageController _pageController = PageController();
+  
+  // Índice de la página actualmente visible
   int _currentPage = 0;
 
+  // Lista de elementos que componen las páginas del Onboarding
   final List<OnboardingItem> _items = [
     OnboardingItem(
       title: 'Bienvenido a la App',
@@ -34,20 +43,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     ),
   ];
 
+  /// Marca el onboarding como visto en SharedPreferences y navega al Login
   Future<void> _completeOnboarding() async {
-    // Guardar en SharedPreferences que el usuario ya vio el onboarding
+    // 1. Guardar de forma persistente que el usuario ya vio el onboarding
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('has_seen_onboarding', true);
 
     if (!mounted) return;
 
-    // Navegar a la pantalla de Login y reemplazar la ruta actual
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const LoginScreen(),
-      ),
-    );
+    // 2. Navegar a la pantalla de Login mediante ruta nombrada
+    Navigator.pushReplacementNamed(context, '/login');
   }
 
   @override
@@ -56,7 +61,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Botón Saltar arriba
+            // Botón Superior Derecho para Saltar el Onboarding
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
               child: Row(
@@ -73,13 +78,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ],
               ),
             ),
-            // Páginas deslizables (PageView)
+            
+            // Área de Páginas Deslizables (PageView)
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
                 itemCount: _items.length,
                 physics: const AlwaysScrollableScrollPhysics(),
                 onPageChanged: (index) {
+                  // Actualizar el estado con el nuevo índice de página
                   setState(() {
                     _currentPage = index;
                   });
@@ -91,6 +98,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        // Icono circular representativo
                         Container(
                           padding: const EdgeInsets.all(32),
                           decoration: BoxDecoration(
@@ -104,6 +112,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           ),
                         ),
                         const SizedBox(height: 48),
+                        
+                        // Título de la página
                         Text(
                           item.title,
                           textAlign: TextAlign.center,
@@ -114,6 +124,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
+                        
+                        // Descripción explicativa
                         Text(
                           item.description,
                           textAlign: TextAlign.center,
@@ -129,12 +141,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 },
               ),
             ),
-            // Indicadores de puntos centrados y botones de navegación
+            
+            // Indicadores de Puntos Centrados y Botones de Navegación Inferior
             Padding(
               padding: const EdgeInsets.all(24.0),
               child: Column(
                 children: [
-                  // Indicadores de puntos (Dots) centrados
+                  // Indicadores animados de puntos (Dots) centrados
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(
@@ -154,11 +167,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  // Botones de navegación (Anterior / Siguiente o Comenzar)
+                  
+                  // Fila de Botones: Anterior / (Siguiente o Comenzar)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Botón Anterior (solo visible si no estamos en la primera página)
+                      // Botón Anterior (visible a partir de la segunda página)
                       _currentPage > 0
                           ? TextButton(
                               onPressed: () {
@@ -211,6 +225,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 }
 
+/// Modelo de datos sencillo para representar cada tarjeta del Onboarding
 class OnboardingItem {
   final String title;
   final String description;

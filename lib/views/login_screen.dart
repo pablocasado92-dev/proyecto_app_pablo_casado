@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../data/data_holder.dart';
-import 'register_screen.dart';
 
+/// ============================================================================
+/// BLOQUE 3: PANTALLA DE INICIO DE SESIÓN (LoginScreen)
+/// ============================================================================
+/// Esta vista gestiona el proceso de autenticación de usuarios existentes
+/// mediante correo electrónico y contraseña utilizando Firebase Authentication.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -11,33 +15,41 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  // Clave global para identificar y validar el formulario
   final _formKey = GlobalKey<FormState>();
+
+  // Controladores de texto para capturar el email y la contraseña
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _obscurePassword = true;
-  bool _isLoading = false;
+
+  // Variables de estado local para la UI
+  bool _obscurePassword = true; // Controla la visibilidad de la contraseña
+  bool _isLoading = false;      // Indica si se está procesando la solicitud
 
   @override
   void dispose() {
+    // Liberación de memoria de los controladores al destruir el widget
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
+  /// Procesa el inicio de sesión del usuario en Firebase Auth
   Future<void> _handleLogin() async {
+    // 1. Validar que los campos del formulario cumplen las reglas
     if (_formKey.currentState!.validate()) {
       setState(() {
-        _isLoading = true;
+        _isLoading = true; // Mostrar indicador de carga
       });
 
       try {
-        // Inicio de sesión real con Firebase Authentication
+        // 2. Llamada asíncrona a Firebase Auth para iniciar sesión
         await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
 
-        // Guardar datos en DataHolder global
+        // 3. Almacenar el email en el DataHolder global para tenerlo disponible
         DataHolder().userEmail = _emailController.text.trim();
 
         if (!mounted) return;
@@ -46,9 +58,10 @@ class _LoginScreenState extends State<LoginScreen> {
           _isLoading = false;
         });
 
-        // Navegar a la HomeView tras el inicio de sesión exitoso
+        // 4. Navegar a la pantalla principal (HomeView) reemplazando la ruta actual
         Navigator.pushReplacementNamed(context, '/home');
       } on FirebaseAuthException catch (e) {
+        // Manejo de errores específicos de Firebase Authentication
         setState(() {
           _isLoading = false;
         });
@@ -67,10 +80,12 @@ class _LoginScreenState extends State<LoginScreen> {
         }
 
         if (!mounted) return;
+        // Mostrar mensaje de error al usuario
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
         );
       } catch (e) {
+        // Captura de otros errores no esperados
         setState(() {
           _isLoading = false;
         });
@@ -99,6 +114,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // Icono superior descriptivo
                   const Icon(
                     Icons.lock_person_rounded,
                     size: 80,
@@ -124,7 +140,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 32),
-                  // Campo de Email
+                  
+                  // Campo de Texto: Correo Electrónico
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
@@ -146,7 +163,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  // Campo de Contraseña
+                  
+                  // Campo de Texto: Contraseña
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
@@ -180,7 +198,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                   ),
                   const SizedBox(height: 24),
-                  // Bottom de Iniciar Sesión
+                  
+                  // Botón Principal de Iniciar Sesión
                   ElevatedButton(
                     onPressed: _isLoading ? null : _handleLogin,
                     style: ElevatedButton.styleFrom(
@@ -209,19 +228,16 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                   ),
                   const SizedBox(height: 16),
-                  // Enlace para registro
+                  
+                  // Enlace hacia la pantalla de Registro mediante ruta nombrada
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text('¿No tienes una cuenta?'),
                       TextButton(
                         onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const RegisterScreen(),
-                            ),
-                          );
+                          // Navegación estandarizada por ruta nombrada
+                          Navigator.pushNamed(context, '/register');
                         },
                         child: const Text('Regístrate'),
                       ),
