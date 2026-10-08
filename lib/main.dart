@@ -11,27 +11,26 @@ import 'views/onboarding_screen.dart';
 import 'views/login_screen.dart';
 import 'views/register_screen.dart';
 import 'views/home_view.dart';
+import 'views/home_profile_gate.dart';
+import 'views/profile_view.dart';
+import 'views/edit_profile_view.dart';
+import 'views/messages_view.dart';
+import 'views/message_detail_view.dart';
 
 /// ============================================================================
 /// PUNTO DE ENTRADA PRINCIPAL DE LA APLICACIÓN
 /// ============================================================================
-/// La función main devuelve un `Future<void>` y es asíncrona (async) para permitir
-/// la inicialización previa de los servicios de Flutter y Firebase mediante await.
 Future<void> main() async {
-  // 1. Garantizar que la infraestructura de widgets de Flutter está inicializada
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 2. Inicializar la conexión con Firebase utilizando las opciones del entorno
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // 3. Lanzar la aplicación principal
   runApp(const MyApp());
 }
 
-/// Permite el desplazamiento (drag) mediante ratón, trackpad, touch y stylus
-/// en todas las plataformas (útil para pruebas en navegador y escritorio)
+/// Comportamiento de desplazamiento para soporte multitáctil y de escritorio
 class MyCustomScrollBehavior extends MaterialScrollBehavior {
   @override
   Set<PointerDeviceKind> get dragDevices => {
@@ -57,7 +56,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       
-      // La app arranca siempre en la ruta raíz '/', donde la SplashScreen evalúa la navegación
+      // La app arranca en la SplashScreen que evalúa la navegación inicial
       initialRoute: '/',
       
       // TABLA DE RUTAS NOMBRADAS DE LA APLICACIÓN
@@ -67,7 +66,11 @@ class MyApp extends StatelessWidget {
         '/onboarding': (context) => const OnboardingScreen(),
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
-        '/home': (context) => const HomeView(),
+        '/home': (context) => HomeProfileGate(homeBuilder: (context) => const HomeView()),
+        '/profile': (context) => const ProfileView(),
+        '/edit_profile': (context) => const EditProfileView(),
+        '/messages': (context) => const MessagesView(),
+        '/message_detail': (context) => const MessageDetailView(),
       },
     );
   }
