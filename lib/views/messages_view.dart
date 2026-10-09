@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../data/data_holder.dart';
@@ -23,18 +24,21 @@ class _MessagesViewState extends State<MessagesView> {
   @override
   void initState() {
     super.initState();
-    DataHolder.instance.iBotBarIndex = 2;
+    DataHolder.instance.iBotBarIndex = 1;
     DataHolder.instance.sMessagesBadgeText = "";
     _inicializarMensajes();
   }
 
   void _inicializarMensajes() {
     final perfil = DataHolder.instance.perfilUsuario;
-    perfil.marcarMensajesLeidos();
     perfil.setOnMessageReceived(mensajeRecibido);
-    setState(() {
-      iNumeroMensajes = perfil.mensajes.length;
-    });
+    perfil.descargarMensajes();
+    perfil.marcarMensajesLeidos();
+    if (mounted) {
+      setState(() {
+        iNumeroMensajes = perfil.mensajes.length;
+      });
+    }
   }
 
   void mensajeRecibido(int iMensajesTotales) {
@@ -44,19 +48,149 @@ class _MessagesViewState extends State<MessagesView> {
     });
   }
 
+  /// Despliega un diálogo para ingresar el email del destinatario y el cuerpo del mensaje
   void onPressedFloatingButton() {
-    final String myUid = DataHolder.instance.perfilUsuario.uid;
+    final TextEditingController emailController = TextEditingController();
+    final TextEditingController cuerpoController = TextEditingController();
+    final GlobalKey<FormState> dialogFormKey = GlobalKey<FormState>();
+    bool isSending = false;
 
-    Mensaje mensajeNuevo = Mensaje.initCampos(
-      "",
-      "Nuevo mensaje en la colección Mensajes #${iNumeroMensajes + 1}",
-      myUid, // destinatarioUID
-      myUid, // remitenteUID
-      Timestamp.now(),
-      titulo: "Mensaje #${iNumeroMensajes + 1}",
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Nuevo Mensaje'),
+              content: Form(
+                key: dialogFormKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        labelText: 'Email del destinatario',
+                        prefixIcon: Icon(Icons.email_outlined),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Ingresa el correo del destinatario';
+                        }
+                        if (!value.contains('@') || !value.contains('.')) {
+                          return 'Ingresa un correo válido';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: cuerpoController,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        labelText: 'Contenido del mensaje',
+                        prefixIcon: Icon(Icons.notes_outlined),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Escribe el contenido del mensaje';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSending ? null : () => Navigator.pop(context),
+                  child: const Text('Cancelar'),
+                ),
+                FilledButton(
+                  onPressed: isSending
+                      ? null
+                      : () async {
+                          if (dialogFormKey.currentState!.validate()) {
+                            setDialogState(() {
+                              isSending = true;
+                            });
+
+                            final String rawEmail = emailController.text.trim();
+                            final String destinatarioEmail = rawEmail.toLowerCase();
+                            final String cuerpoTexto = cuerpoController.text.trim();
+
+                            final String myUid = DataHolder.instance.perfilUsuario.uid.isNotEmpty
+                                ? DataHolder.instance.perfilUsuario.uid
+                                : (FirebaseAuth.instance.currentUser?.uid ?? "");
+
+                            String destUid = destinatarioEmail;
+                            bool perfilEncontrado = false;
+
+                            try {
+                              // Buscar el destinatario en Firestore por su correo electrónico
+                              var query = await FirebaseFirestore.instance
+                                  .collection("Perfiles")
+                                  .where("email", isEqualTo: destinatarioEmail)
+                                  .get();
+
+                              if (query.docs.isEmpty) {
+                                query = await FirebaseFirestore.instance
+                                    .collection("Perfiles")
+                                    .where("email", isEqualTo: rawEmail)
+                                    .get();
+                              }
+
+                              if (query.docs.isNotEmpty) {
+                                destUid = query.docs.first.id; // UID del destinatario encontrado
+                                perfilEncontrado = true;
+                              }
+
+                              Mensaje mensajeNuevo = Mensaje.initCampos(
+                                "",
+                                cuerpoTexto,
+                                destUid, // destinatarioUID (UID o Email)
+                                myUid,   // remitenteUID
+                                Timestamp.now(),
+                              );
+
+                              DataHolder.instance.perfilUsuario.agregarNuevoMensaje(mensajeNuevo);
+
+                              if (!context.mounted) return;
+                              Navigator.pop(context);
+
+                              final String textoConfirmacion = perfilEncontrado
+                                  ? 'Mensaje enviado a $rawEmail'
+                                  : 'Mensaje enviado a $rawEmail (guardado por correo)';
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(textoConfirmacion)),
+                              );
+                            } catch (e) {
+                              setDialogState(() {
+                                isSending = false;
+                              });
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Error al enviar mensaje: $e'), backgroundColor: Colors.red),
+                              );
+                            }
+                          }
+                        },
+                  child: isSending
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Enviar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
-
-    DataHolder.instance.perfilUsuario.agregarNuevoMensaje(mensajeNuevo);
   }
 
   void _mostrarDetalleMensaje(BuildContext context, Mensaje mensaje) {
@@ -76,19 +210,37 @@ class _MessagesViewState extends State<MessagesView> {
                 children: [
                   const Icon(Icons.mail_rounded, color: AppColores.oscuro, size: 28),
                   const SizedBox(width: AppEspacios.sm),
-                  Expanded(
+                  const Expanded(
                     child: Text(
-                      mensaje.titulo ?? "Detalle del Mensaje",
+                      "Detalle del Mensaje",
                       style: AppTextos.tituloLista,
                     ),
                   ),
                 ],
               ),
               const Divider(height: AppEspacios.lg),
-              if (mensaje.remitenteUID != null && mensaje.remitenteUID!.isNotEmpty) ...[
-                Text("De: ${mensaje.remitenteUID}", style: AppTextos.secundario),
-                const SizedBox(height: AppEspacios.xs),
-              ],
+              
+              // Mapeo dinámico del UID del remitente a su email en Firestore
+              FutureBuilder<String>(
+                future: DataHolder.instance.getEmailByUid(mensaje.remitenteUID),
+                builder: (context, snapshot) {
+                  final String deTexto = snapshot.data ?? (mensaje.remitenteUID ?? 'Anónimo');
+                  return Text("De: $deTexto", style: AppTextos.secundario);
+                },
+              ),
+              const SizedBox(height: AppEspacios.xs),
+
+              // Mapeo dinámico del UID del destinatario a su email en Firestore
+              FutureBuilder<String>(
+                future: DataHolder.instance.getEmailByUid(mensaje.destinatarioUID),
+                builder: (context, snapshot) {
+                  final String paraTexto = snapshot.data ?? (mensaje.destinatarioUID ?? '');
+                  if (paraTexto.isEmpty) return const SizedBox.shrink();
+                  return Text("Para: $paraTexto", style: AppTextos.secundario);
+                },
+              ),
+              const SizedBox(height: AppEspacios.md),
+
               SelectableText(
                 mensaje.cuerpo ?? "Sin contenido",
                 style: AppTextos.cuerpo,
@@ -151,17 +303,25 @@ class _MessagesViewState extends State<MessagesView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      mensaje.titulo ?? (mensaje.cuerpo ?? "Sin título"),
+                      mensaje.cuerpo ?? "Sin contenido",
                       style: AppTextos.tituloLista,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: AppEspacios.xs),
-                    Text(
-                      mensaje.cuerpo ?? "Sin contenido",
-                      style: AppTextos.secundario,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+
+                    // Mapeo dinámico del UID del remitente a su email desde Firestore
+                    FutureBuilder<String>(
+                      future: DataHolder.instance.getEmailByUid(mensaje.remitenteUID),
+                      builder: (context, snapshot) {
+                        final String emailRemitente = snapshot.data ?? (mensaje.remitenteUID ?? 'Anónimo');
+                        return Text(
+                          "De: $emailRemitente",
+                          style: AppTextos.secundario,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -179,6 +339,44 @@ class _MessagesViewState extends State<MessagesView> {
   }
 
   Widget crearLista() {
+    // Si la lista está vacía, se muestra un estado visual indicándolo claramente
+    if (iNumeroMensajes == 0) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppEspacios.xl),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.mark_email_read_outlined,
+                size: 80,
+                color: AppColores.textoSecundario.withValues(alpha: 0.5),
+              ),
+              const SizedBox(height: AppEspacios.md),
+              const Text(
+                'No tienes ningún mensaje',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColores.textoSecundario,
+                ),
+              ),
+              const SizedBox(height: AppEspacios.sm),
+              const Text(
+                'Pulsa el botón + para enviar un mensaje a otro usuario.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppColores.textoSecundario,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(AppEspacios.md, AppEspacios.md, AppEspacios.md, AppEspacios.xl * 3),
       itemCount: iNumeroMensajes,
@@ -202,10 +400,11 @@ class _MessagesViewState extends State<MessagesView> {
         sBadge2: DataHolder.instance.sMessagesBadgeText,
         iBarIndex: DataHolder.instance.iBotBarIndex,
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: onPressedFloatingButton,
-        tooltip: 'Añadir Mensaje',
-        child: const Icon(Icons.add),
+        icon: const Icon(Icons.add),
+        label: const Text('Nuevo Mensaje'),
+        tooltip: 'Nuevo Mensaje',
       ),
     );
   }

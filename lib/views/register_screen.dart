@@ -73,8 +73,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
             .doc(uid)
             .set(nuevoPerfil.toFirestore());
 
-        // 5. Asignar el perfil en el DataHolder global
+        // 5. Asignar el perfil en el DataHolder global y activar escuchas
         DataHolder.instance.perfilUsuario = nuevoPerfil;
+        await nuevoPerfil.descargarMensajes();
 
         if (!mounted) return;
 

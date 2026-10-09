@@ -4,8 +4,10 @@
 // Representa un documento de la colección "Perfiles" de Firestore:
 //     Perfiles/{uid}   ->  { name, edad, email, urlAvatar?, fechaRegistro }
 // =====================================================================
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 import 'mensaje.dart';
 
@@ -32,11 +34,11 @@ class Perfil {
   /// Fecha y hora de creación de la cuenta/perfil.
   Timestamp? fechaRegistro;
 
-  /// Mensajes pertenecientes al usuario.
+  /// Mensajes recibidos pertenecientes al usuario.
   List<Mensaje> mensajes = <Mensaje>[];
 
-  /// Imagen mostrada en la vista si existe urlAvatar.
-  Image? avatar;
+  /// Suscripción al Stream de Firestore para evitar listeners duplicados
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _messagesSubscription;
 
   /// CALLBACK: se llama cuando cambian los mensajes en tiempo real.
   Function(int numeroMensajes)? onMessageReceived;
@@ -49,11 +51,7 @@ class Perfil {
     this.email,
     this.urlAvatar,
     this.fechaRegistro,
-  }) {
-    if (urlAvatar != null && urlAvatar!.isNotEmpty) {
-      avatar = Image.network(urlAvatar!);
-    }
-  }
+  });
 
   /// Registra la función que se llamará cuando cambien los mensajes.
   void setOnMessageReceived(Function(int numeroMensajes)? onMessageReceived) {
@@ -82,37 +80,52 @@ class Perfil {
       if (name != null) "name": name,
       if (edad != null) "edad": edad,
       if (email != null) "email": email,
-      "urlAvatar": urlAvatar, // Guarda la URL o null si no se ha subido foto aún
+      "urlAvatar": urlAvatar,
       if (fechaRegistro != null) "fechaRegistro": fechaRegistro,
     };
   }
 
-  /// Empieza a escuchar EN TIEMPO REAL la colección principal "Mensajes" de Firestore.
+  /// Empieza a escuchar EN TIEMPO REAL los MENSAJES RECIBIDOS del usuario desde Firestore.
+  /// Cancela la suscripción anterior para evitar duplicaciones por múltiples escuchas.
   Future<void> descargarMensajes() async {
-    FirebaseFirestore db = FirebaseFirestore.instance;
+    await _messagesSubscription?.cancel();
 
-    // Escucha en tiempo real los mensajes dirigidos a este usuario
-    final queryDestinatario = db
-        .collection("Mensajes")
-        .where("destinatarioUID", isEqualTo: uid)
-        .limit(20);
+    final String authUid = FirebaseAuth.instance.currentUser?.uid ?? uid;
+    final String authEmail = FirebaseAuth.instance.currentUser?.email ?? email ?? "";
 
-    queryDestinatario.snapshots().listen(
+    final String myUidClean = authUid.trim().toLowerCase();
+    final String userEmailClean = (email ?? authEmail).trim().toLowerCase();
+    final String authEmailClean = authEmail.trim().toLowerCase();
+
+    if (myUidClean.isEmpty && userEmailClean.isEmpty) return;
+
+    // Escuchar la colección principal "Mensajes" en tiempo real
+    final queryMensajes = db.collection("Mensajes").limit(50);
+
+    _messagesSubscription = queryMensajes.snapshots().listen(
       (event) {
         mensajes.clear();
         for (var docSnapshot in event.docs) {
           Map<String, dynamic> fila = docSnapshot.data();
-          mensajes.add(Mensaje(docSnapshot.id, fila));
+          final String dest = (fila["destinatarioUID"] as String? ?? "").trim().toLowerCase();
+
+          // Filtrar EXCLUSIVAMENTE los mensajes RECIBIDOS por este usuario (coincidencia por UID o Email)
+          final bool esParaMi = (myUidClean.isNotEmpty && dest == myUidClean) ||
+              (userEmailClean.isNotEmpty && dest == userEmailClean) ||
+              (authEmailClean.isNotEmpty && dest == authEmailClean);
+
+          if (esParaMi) {
+            mensajes.add(Mensaje(docSnapshot.id, fila));
+          }
         }
         onMessageReceived?.call(mensajes.length);
       },
-      onError: (error) => debugPrint("Listen failed: $error"),
+      onError: (error) => debugPrint("Error escuchando mensajes: $error"),
     );
   }
 
-  /// Añade un mensaje nuevo a la lista local y a la colección "Mensajes" de Firestore.
+  /// Añade un mensaje nuevo a Firestore.
   void agregarNuevoMensaje(Mensaje m) async {
-    mensajes.add(m);
     await db.collection("Mensajes").add(m.toFirestore());
   }
 
@@ -124,5 +137,10 @@ class Perfil {
         await m.update();
       }
     }
+  }
+
+  /// Libera la suscripción al cerrar sesión o destruir el perfil
+  void dispose() {
+    _messagesSubscription?.cancel();
   }
 }

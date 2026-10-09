@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
 import '../admins/device_admin.dart';
 import '../admins/firebase_admin.dart';
@@ -44,7 +44,6 @@ class DataHolder {
   Perfil? _perfilUsuario;
 
   /// Perfil completo del usuario con sesión iniciada.
-  /// Inicialización segura por defecto para evitar errores de tipo LateInitializationError.
   Perfil get perfilUsuario => _perfilUsuario ??= Perfil(
         uid: FirebaseAuth.instance.currentUser?.uid ?? "",
         name: FirebaseAuth.instance.currentUser?.displayName ?? "Usuario",
@@ -58,6 +57,36 @@ class DataHolder {
   /// Variables de compatibilidad
   String userEmail = '';
   String userName = '';
+
+  /// Caché en memoria para asociar UIDs con correos electrónicos
+  final Map<String, String> _userEmailCache = {};
+
+  /// Obtiene el correo electrónico asociado a un UID consultando la colección "Perfiles"
+  Future<String> getEmailByUid(String? uid) async {
+    if (uid == null || uid.isEmpty) return 'Anónimo';
+    if (uid.contains('@')) return uid; // Si el campo ya contiene un correo directo
+
+    if (_userEmailCache.containsKey(uid)) {
+      return _userEmailCache[uid]!;
+    }
+
+    try {
+      final doc = await db.collection("Perfiles").doc(uid).get();
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        final String emailEncontrado = (data['email'] as String? ?? '').isNotEmpty
+            ? data['email'] as String
+            : (data['name'] as String? ?? uid);
+        _userEmailCache[uid] = emailEncontrado;
+        return emailEncontrado;
+      }
+    } catch (e) {
+      debugPrint("Error buscando email para $uid: $e");
+    }
+
+    _userEmailCache[uid] = uid;
+    return uid;
+  }
 
   // ==========================================================================
   // ESTADO COMPARTIDO DE LA BARRA INFERIOR (BottomBar Badges & Navigation)
@@ -81,7 +110,6 @@ class DataHolder {
   Future<Perfil> descargarPerfil() async {
     perfilUsuario = await firebaseAdmin.descargarPerfil();
 
-    // Contar los mensajes no leídos para la insignia/badge de la barra
     int numNoLeido = 0;
     for (Mensaje m in perfilUsuario.mensajes) {
       if (!m.leido) numNoLeido++;
@@ -100,6 +128,7 @@ class DataHolder {
     sMessagesBadgeText = "";
     blNotificacionesBadge = true;
     iBotBarIndex = 0;
+    _userEmailCache.clear();
   }
 }
 

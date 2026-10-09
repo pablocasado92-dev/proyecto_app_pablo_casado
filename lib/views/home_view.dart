@@ -89,20 +89,6 @@ class HomeView extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
-
-              // Acceso rápido a Mensajes
-              OutlinedButton.icon(
-                onPressed: () => Navigator.pushNamed(context, '/messages'),
-                icon: const Icon(Icons.mail_outline_rounded),
-                label: const Text('Ver Mis Mensajes'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
               const Spacer(),
               
               // Botón inferior para cerrar sesión

@@ -3,10 +3,9 @@ import 'package:flutter/material.dart';
 /// =====================================================================
 /// InsBotBarStyle1 — BARRA DE NAVEGACIÓN INFERIOR REUTILIZABLE
 /// ---------------------------------------------------------------------
-/// Componente de barra de navegación inferior con 3 pestañas:
-///   0 Principal     -> "/home"
-///   1 Notifications -> Notificaciones con insignia (badge)
-///   2 Messages      -> Mensajes con insignia de conteo
+/// Componente de barra de navegación inferior con 2 pestañas:
+///   0 Principal -> "/home"
+///   1 Mensajes  -> "/messages"
 /// =====================================================================
 class InsBotBarStyle1 extends StatefulWidget {
   final bool blBadge1;
@@ -15,7 +14,7 @@ class InsBotBarStyle1 extends StatefulWidget {
 
   const InsBotBarStyle1({
     super.key,
-    required this.blBadge1,
+    this.blBadge1 = false,
     required this.sBadge2,
     required this.iBarIndex,
   });
@@ -25,29 +24,24 @@ class InsBotBarStyle1 extends StatefulWidget {
 }
 
 class _InsBotBarStyle1State extends State<InsBotBarStyle1> {
-  late bool _blBadge1;
   late String _sBadge2;
   late int _iBarIndex;
 
   @override
   void initState() {
     super.initState();
-    _blBadge1 = widget.blBadge1;
     _sBadge2 = widget.sBadge2;
     _iBarIndex = widget.iBarIndex;
   }
 
   void _onItemSelected(int index) {
+    if (index == _iBarIndex) return;
+
     switch (index) {
       case 0:
         Navigator.popAndPushNamed(context, "/home");
         break;
       case 1:
-        setState(() {
-          _blBadge1 = false;
-        });
-        break;
-      case 2:
         setState(() {
           _sBadge2 = "";
         });
@@ -72,17 +66,6 @@ class _InsBotBarStyle1State extends State<InsBotBarStyle1> {
         ),
         NavigationDestination(
           selectedIcon: Badge(
-            isLabelVisible: _blBadge1,
-            child: const Icon(Icons.notifications_rounded),
-          ),
-          icon: Badge(
-            isLabelVisible: _blBadge1,
-            child: const Icon(Icons.notifications_outlined),
-          ),
-          label: 'Notifications',
-        ),
-        NavigationDestination(
-          selectedIcon: Badge(
             isLabelVisible: _sBadge2.isNotEmpty,
             label: Text(_sBadge2),
             child: const Icon(Icons.chat_bubble_rounded),
@@ -92,7 +75,7 @@ class _InsBotBarStyle1State extends State<InsBotBarStyle1> {
             label: Text(_sBadge2),
             child: const Icon(Icons.chat_bubble_outline_rounded),
           ),
-          label: 'Messages',
+          label: 'Mensajes',
         ),
       ],
     );

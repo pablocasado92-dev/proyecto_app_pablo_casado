@@ -2,7 +2,7 @@
 // mensaje.dart — MODELO DE UN MENSAJE
 // ---------------------------------------------------------------------
 // Representa un documento de la colección de Firestore "Mensajes":
-//     Mensajes/{uidMensaje}   ->  { cuerpo, destinatarioUID, remitenteUID, fecha }
+//     Mensajes/{uidMensaje}   ->  { cuerpo, destinatarioUID, remitenteUID, fecha, leido }
 // =====================================================================
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -17,17 +17,14 @@ class Mensaje {
   /// Contenido principal del mensaje.
   String? cuerpo;
 
-  /// UID del usuario destinatario.
+  /// UID o Email del usuario destinatario.
   String? destinatarioUID;
 
-  /// UID del usuario remitente.
+  /// UID o Email del usuario remitente.
   String? remitenteUID;
 
   /// Fecha y hora de envío del mensaje.
   Timestamp? fecha;
-
-  /// Título opcional del mensaje (para encabezados de la lista).
-  String? titulo;
 
   /// Estado de lectura del mensaje.
   bool leido = false;
@@ -39,7 +36,6 @@ class Mensaje {
     this.destinatarioUID,
     this.remitenteUID,
     this.fecha, {
-    this.titulo,
     this.leido = false,
   });
 
@@ -49,7 +45,6 @@ class Mensaje {
     destinatarioUID = fila["destinatarioUID"] as String? ?? "";
     remitenteUID = fila["remitenteUID"] as String? ?? "";
     fecha = (fila["fecha"] as Timestamp?) ?? (fila["enviado"] as Timestamp?);
-    titulo = fila["titulo"] as String? ?? (cuerpo!.isNotEmpty ? cuerpo : "Mensaje");
     leido = fila["leido"] as bool? ?? false;
   }
 
@@ -61,7 +56,6 @@ class Mensaje {
       if (remitenteUID != null) "remitenteUID": remitenteUID,
       if (fecha != null) "fecha": fecha,
       "leido": leido,
-      if (titulo != null) "titulo": titulo,
     };
   }
 

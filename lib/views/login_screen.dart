@@ -49,8 +49,9 @@ class _LoginScreenState extends State<LoginScreen> {
           password: _passwordController.text.trim(),
         );
 
-        // 3. Almacenar el email en el DataHolder global para tenerlo disponible
+        // 3. Almacenar el email y descargar el perfil del usuario desde Firestore
         DataHolder().userEmail = _emailController.text.trim();
+        await DataHolder.instance.descargarPerfil();
 
         if (!mounted) return;
 
