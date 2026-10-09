@@ -5,17 +5,13 @@ import 'package:flutter/gestures.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart'; // Opciones de configuración generadas por FlutterFire CLI
 
-// Importación de las vistas de la aplicación
+// Importación de las 6 vistas principales simplificadas
 import 'views/splash_screen.dart';
 import 'views/onboarding_screen.dart';
 import 'views/login_screen.dart';
 import 'views/register_screen.dart';
 import 'views/home_view.dart';
-import 'views/home_profile_gate.dart';
-import 'views/profile_view.dart';
-import 'views/edit_profile_view.dart';
 import 'views/messages_view.dart';
-import 'views/message_detail_view.dart';
 
 /// ============================================================================
 /// PUNTO DE ENTRADA PRINCIPAL DE LA APLICACIÓN
@@ -59,18 +55,15 @@ class MyApp extends StatelessWidget {
       // La app arranca en la SplashScreen que evalúa la navegación inicial
       initialRoute: '/',
       
-      // TABLA DE RUTAS NOMBRADAS DE LA APLICACIÓN
+      // TABLA DE RUTAS NOMBRADAS SIMPLIFICADA (6 vistas)
       routes: {
         '/': (context) => const SplashScreen(),
         '/splash': (context) => const SplashScreen(),
         '/onboarding': (context) => const OnboardingScreen(),
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
-        '/home': (context) => HomeProfileGate(homeBuilder: (context) => const HomeView()),
-        '/profile': (context) => const ProfileView(),
-        '/edit_profile': (context) => const EditProfileView(),
+        '/home': (context) => const HomeView(),
         '/messages': (context) => const MessagesView(),
-        '/message_detail': (context) => const MessageDetailView(),
       },
     );
   }

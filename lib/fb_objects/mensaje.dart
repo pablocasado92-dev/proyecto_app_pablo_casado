@@ -1,10 +1,8 @@
 // =====================================================================
 // mensaje.dart — MODELO DE UN MENSAJE
 // ---------------------------------------------------------------------
-// Representa un documento de la SUBCOLECCIÓN de Firestore:
-//     Perfiles/{uidPerfil}/Mensajes/{uidMensaje}
-// con los campos titulo (String), cuerpo (String), leido (bool) y
-// enviado (Timestamp).
+// Representa un documento de la colección de Firestore "Mensajes":
+//     Mensajes/{uidMensaje}   ->  { cuerpo, destinatarioUID, remitenteUID, fecha }
 // =====================================================================
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -15,38 +13,62 @@ class Mensaje {
 
   /// Id del documento en Firestore.
   String? uid;
-  /// Título del mensaje.
-  String? titulo;
-  /// Texto completo del mensaje.
+
+  /// Contenido principal del mensaje.
   String? cuerpo;
-  /// Si el usuario ya lo ha visto.
+
+  /// UID del usuario destinatario.
+  String? destinatarioUID;
+
+  /// UID del usuario remitente.
+  String? remitenteUID;
+
+  /// Fecha y hora de envío del mensaje.
+  Timestamp? fecha;
+
+  /// Título opcional del mensaje (para encabezados de la lista).
+  String? titulo;
+
+  /// Estado de lectura del mensaje.
   bool leido = false;
-  /// Fecha y hora de envío.
-  Timestamp? enviado;
 
-  /// Constructor con nombre: crea un mensaje pasando todos los campos en orden.
-  Mensaje.initCampos(this.uid, this.titulo, this.cuerpo, this.leido, this.enviado);
+  /// Constructor con campos iniciales
+  Mensaje.initCampos(
+    this.uid,
+    this.cuerpo,
+    this.destinatarioUID,
+    this.remitenteUID,
+    this.fecha, {
+    this.titulo,
+    this.leido = false,
+  });
 
-  /// Constructor principal: crea un Mensaje a partir del id del documento y del Map leído de Firestore.
+  /// Constructor a partir de un DocumentSnapshot/Map leído de Firestore.
   Mensaje(this.uid, Map<String, dynamic> fila) {
-    titulo = fila["titulo"] as String? ?? "";
     cuerpo = fila["cuerpo"] as String? ?? "";
+    destinatarioUID = fila["destinatarioUID"] as String? ?? "";
+    remitenteUID = fila["remitenteUID"] as String? ?? "";
+    fecha = (fila["fecha"] as Timestamp?) ?? (fila["enviado"] as Timestamp?);
+    titulo = fila["titulo"] as String? ?? (cuerpo!.isNotEmpty ? cuerpo : "Mensaje");
     leido = fila["leido"] as bool? ?? false;
-    enviado = fila["enviado"] as Timestamp?;
   }
 
-  /// Convierte el mensaje en un Map para guardarlo en Firestore.
+  /// Convierte el mensaje en un Map para guardarlo en la colección "Mensajes" de Firestore.
   Map<String, dynamic> toFirestore() {
     return {
-      if (titulo != null) "titulo": titulo,
       if (cuerpo != null) "cuerpo": cuerpo,
+      if (destinatarioUID != null) "destinatarioUID": destinatarioUID,
+      if (remitenteUID != null) "remitenteUID": remitenteUID,
+      if (fecha != null) "fecha": fecha,
       "leido": leido,
-      if (enviado != null) "enviado": enviado,
+      if (titulo != null) "titulo": titulo,
     };
   }
 
-  /// Guarda (sobrescribe) este mensaje en "Perfiles/{sPerfilUID}/Mensajes/{uid}".
-  Future<void> update(String sPerfilUID) async {
-    return await db.collection("Perfiles/$sPerfilUID/Mensajes").doc(uid).set(toFirestore());
+  /// Actualiza este documento en la colección principal "Mensajes" de Firestore.
+  Future<void> update() async {
+    if (uid != null && uid!.isNotEmpty) {
+      await db.collection("Mensajes").doc(uid).set(toFirestore(), SetOptions(merge: true));
+    }
   }
 }

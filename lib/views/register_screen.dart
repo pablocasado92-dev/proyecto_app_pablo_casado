@@ -1,12 +1,14 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../data/data_holder.dart';
+import '../fb_objects/perfil.dart';
 
 /// ============================================================================
-/// BLOQUE 3: PANTALLA DE REGISTRO DE USUARIOS (RegisterScreen)
+/// PANTALLA DE REGISTRO DE USUARIOS (RegisterScreen)
 /// ============================================================================
 /// Esta vista permite crear una nueva cuenta de usuario en Firebase Authentication,
-/// capturando nombre completo, correo electrónico y contraseña con validaciones.
+/// registrando su documento de perfil en la colección "Perfiles" de Firestore.
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -31,7 +33,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   void dispose() {
-    // Liberación de recursos de controladores de texto
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -39,7 +40,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  /// Procesa el registro de un nuevo usuario en Firebase Authentication
+  /// Procesa el registro de un nuevo usuario en Firebase Auth y Firestore
   Future<void> _handleRegister() async {
     // 1. Validar que el formulario sea correcto
     if (_formKey.currentState!.validate()) {
@@ -54,12 +55,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
           password: _passwordController.text.trim(),
         );
 
+        final String uid = userCredential.user!.uid;
+
         // 3. Guardar el nombre completo (displayName) en el perfil de Firebase Auth
         await userCredential.user?.updateDisplayName(_nameController.text.trim());
 
-        // 4. Guardar los datos en el DataHolder global para compartirlos en memoria
-        DataHolder().userName = _nameController.text.trim();
-        DataHolder().userEmail = _emailController.text.trim();
+        // 4. Crear el documento de perfil en la colección "Perfiles" de Firestore
+        final nuevoPerfil = Perfil(
+          uid: uid,
+          name: _nameController.text.trim(),
+          email: _emailController.text.trim(),
+          fechaRegistro: Timestamp.now(),
+        );
+
+        await FirebaseFirestore.instance
+            .collection("Perfiles")
+            .doc(uid)
+            .set(nuevoPerfil.toFirestore());
+
+        // 5. Asignar el perfil en el DataHolder global
+        DataHolder.instance.perfilUsuario = nuevoPerfil;
 
         if (!mounted) return;
 
@@ -67,7 +82,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           _isLoading = false;
         });
 
-        // 5. Notificar éxito y navegar a la pantalla principal (HomeView)
+        // 6. Notificar éxito y navegar a la pantalla principal (HomeView)
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('¡Registro exitoso en Firebase!')),
         );
@@ -124,7 +139,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Icono superior
                   const Icon(
                     Icons.person_add_alt_1_rounded,
                     size: 80,

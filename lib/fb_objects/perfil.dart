@@ -2,13 +2,7 @@
 // perfil.dart — MODELO DEL PERFIL DEL USUARIO (Y SUS MENSAJES)
 // ---------------------------------------------------------------------
 // Representa un documento de la colección "Perfiles" de Firestore:
-//     Perfiles/{uid}   ->  { name, edad, altura, urlAvatar? }
-// El id del documento es el uid del usuario en Firebase Auth: así cada
-// cuenta tiene exactamente un perfil.
-// Además, el perfil "es dueño" de la subcolección de mensajes:
-//     Perfiles/{uid}/Mensajes/{idMensaje}
-// que escucha en TIEMPO REAL (descargarMensajes) y, cuando cambia, avisa a
-// la pantalla interesada mediante un CALLBACK (onMessageReceived).
+//     Perfiles/{uid}   ->  { name, edad, email, urlAvatar?, fechaRegistro }
 // =====================================================================
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
@@ -22,27 +16,40 @@ class Perfil {
 
   /// Id del documento = uid del usuario en Firebase Auth.
   String uid = "";
-  /// Nombre del usuario.
+
+  /// Nombre completo o apodo del usuario.
   String? name;
+
   /// Edad en años.
   int? edad;
-  /// Altura (double: admite decimales).
-  double? altura = 0.0;
-  /// Mensajes de "Perfiles/{uid}/Mensajes". Los rellena descargarMensajes().
-  List<Mensaje> mensajes = <Mensaje>[];
-  /// Imagen mostrada en la vista: en memoria al elegirla o desde la URL
-  /// guardada en Firestore al volver a cargar el perfil.
-  Image? avatar;
 
-  /// URL de descarga del avatar en Firebase Storage, persistida en Firestore.
+  /// Correo electrónico del usuario.
+  String? email;
+
+  /// URL de descarga del avatar en Firebase Storage (opcional / null).
   String? urlAvatar;
 
-  /// CALLBACK: una función guardada en una variable. El perfil la llama cuando
-  /// cambian los mensajes, pasando el número total.
+  /// Fecha y hora de creación de la cuenta/perfil.
+  Timestamp? fechaRegistro;
+
+  /// Mensajes pertenecientes al usuario.
+  List<Mensaje> mensajes = <Mensaje>[];
+
+  /// Imagen mostrada en la vista si existe urlAvatar.
+  Image? avatar;
+
+  /// CALLBACK: se llama cuando cambian los mensajes en tiempo real.
   Function(int numeroMensajes)? onMessageReceived;
 
-  /// Constructor con parámetros con nombre (y opcionales): Perfil(uid: ..., name: ...).
-  Perfil({required this.uid, this.name, this.edad, this.altura, this.urlAvatar}) {
+  /// Constructor con parámetros con nombre.
+  Perfil({
+    required this.uid,
+    this.name,
+    this.edad,
+    this.email,
+    this.urlAvatar,
+    this.fechaRegistro,
+  }) {
     if (urlAvatar != null && urlAvatar!.isNotEmpty) {
       avatar = Image.network(urlAvatar!);
     }
@@ -63,29 +70,34 @@ class Perfil {
       uid: snapshot.id,
       name: data?['name'] as String?,
       edad: (data?['edad'] as num?)?.toInt(),
-      altura: (data?['altura'] as num?)?.toDouble(),
+      email: data?['email'] as String?,
       urlAvatar: data?['urlAvatar'] as String?,
+      fechaRegistro: data?['fechaRegistro'] as Timestamp?,
     );
   }
 
-  /// Conversión contraria: Perfil -> Map, para guardarlo con set().
+  /// Conversión contraria: Perfil -> Map para guardarlo en Firestore con set().
   Map<String, dynamic> toFirestore() {
     return {
       if (name != null) "name": name,
       if (edad != null) "edad": edad,
-      if (altura != null) "altura": altura,
-      if (urlAvatar != null) "urlAvatar": urlAvatar,
+      if (email != null) "email": email,
+      "urlAvatar": urlAvatar, // Guarda la URL o null si no se ha subido foto aún
+      if (fechaRegistro != null) "fechaRegistro": fechaRegistro,
     };
   }
 
-  /// Empieza a escuchar EN TIEMPO REAL los mensajes del usuario (máximo 20)
-  /// en "Perfiles/{uid}/Mensajes".
+  /// Empieza a escuchar EN TIEMPO REAL la colección principal "Mensajes" de Firestore.
   Future<void> descargarMensajes() async {
     FirebaseFirestore db = FirebaseFirestore.instance;
 
-    final docRef = db.collection("Perfiles/$uid/Mensajes").limit(20);
+    // Escucha en tiempo real los mensajes dirigidos a este usuario
+    final queryDestinatario = db
+        .collection("Mensajes")
+        .where("destinatarioUID", isEqualTo: uid)
+        .limit(20);
 
-    docRef.snapshots().listen(
+    queryDestinatario.snapshots().listen(
       (event) {
         mensajes.clear();
         for (var docSnapshot in event.docs) {
@@ -98,11 +110,10 @@ class Perfil {
     );
   }
 
-  /// Añade un mensaje nuevo a la lista local y a Firestore.
+  /// Añade un mensaje nuevo a la lista local y a la colección "Mensajes" de Firestore.
   void agregarNuevoMensaje(Mensaje m) async {
     mensajes.add(m);
-    final colMensajes = db.collection("Perfiles/$uid/Mensajes");
-    await colMensajes.add(m.toFirestore());
+    await db.collection("Mensajes").add(m.toFirestore());
   }
 
   /// Marca como leídos los mensajes que no lo estaban y guarda cada cambio en Firestore.
@@ -110,7 +121,7 @@ class Perfil {
     for (Mensaje m in mensajes) {
       if (!m.leido) {
         m.leido = true;
-        await m.update(uid);
+        await m.update();
       }
     }
   }

@@ -1,47 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../data/data_holder.dart';
+import '../ins_lib/bot_bars/ins_bot_bar_style1.dart';
 
 /// ============================================================================
-/// BLOQUE 5: PANTALLA PRINCIPAL (HomeView)
+/// PANTALLA PRINCIPAL (HomeView)
 /// ============================================================================
-/// Esta vista actúa como el panel de control del usuario autenticado.
-/// Muestra la información del perfil obtenida de Firebase Auth o DataHolder,
-/// y ofrece la opción de cerrar sesión de forma segura.
+/// Panel de control del usuario autenticado. Muestra los datos de la cuenta
+/// e integra la barra de navegación inferior (`InsBotBarStyle1`).
 class HomeView extends StatelessWidget {
   const HomeView({super.key});
 
   /// Realiza el cierre de sesión del usuario
   Future<void> _signOut(BuildContext context) async {
-    // 1. Cerrar la sesión activa en Firebase Authentication
     await FirebaseAuth.instance.signOut();
-    
-    // 2. Limpiar los datos almacenados en el DataHolder global
-    DataHolder().clearData();
+    DataHolder.instance.clearData();
 
     if (!context.mounted) return;
-
-    // 3. Redirigir al Login eliminando todo el historial de navegación previa
     Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
   }
 
   @override
   Widget build(BuildContext context) {
-    // 1. Obtener la sesión activa de Firebase Auth si existe
+    DataHolder.instance.iBotBarIndex = 0;
     final User? firebaseUser = FirebaseAuth.instance.currentUser;
     
-    // 2. Recuperar email y nombre (priorizando Firebase y fallback al DataHolder)
     final String userEmail = firebaseUser?.email ?? 
-        (DataHolder().userEmail.isNotEmpty ? DataHolder().userEmail : 'Invitado');
+        (DataHolder.instance.userEmail.isNotEmpty ? DataHolder.instance.userEmail : 'Invitado');
     final String userName = firebaseUser?.displayName ?? 
-        (DataHolder().userName.isNotEmpty ? DataHolder().userName : 'Usuario');
+        (DataHolder.instance.userName.isNotEmpty ? DataHolder.instance.userName : 'Usuario');
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Panel Principal (Home View)'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
-          // Botón de cerrar sesión en la barra superior
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Cerrar sesión',
@@ -96,30 +89,23 @@ class HomeView extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
-              
-              const Text(
-                '¡Bienvenido a tu HomeView!',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.deepPurple,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Has iniciado sesión correctamente. Aquí se muestran los datos del usuario introducidos al registrarte o iniciar sesión.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey,
-                  height: 1.5,
+              const SizedBox(height: 24),
+
+              // Acceso rápido a Mensajes
+              OutlinedButton.icon(
+                onPressed: () => Navigator.pushNamed(context, '/messages'),
+                icon: const Icon(Icons.mail_outline_rounded),
+                label: const Text('Ver Mis Mensajes'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
               const Spacer(),
               
-              // Botón inferor para cerrar sesión
+              // Botón inferior para cerrar sesión
               ElevatedButton.icon(
                 onPressed: () => _signOut(context),
                 icon: const Icon(Icons.logout),
@@ -136,6 +122,11 @@ class HomeView extends StatelessWidget {
             ],
           ),
         ),
+      ),
+      bottomNavigationBar: InsBotBarStyle1(
+        blBadge1: DataHolder.instance.blNotificacionesBadge,
+        sBadge2: DataHolder.instance.sMessagesBadgeText,
+        iBarIndex: DataHolder.instance.iBotBarIndex,
       ),
     );
   }

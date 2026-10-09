@@ -4,33 +4,29 @@ Aplicación móvil y web desarrollada en Flutter con Firebase (Auth, Firestore y
 
 ---
 
-## 🏛️ Arquitectura y Estructura del Proyecto
+## 🏛️ Arquitectura y Estructura Simplificada del Proyecto
 
-El proyecto está organizado por capas y componentes reutilizables:
+El proyecto se compone exactamente de las **6 vistas principales** requeridas:
 
 ```text
 lib/
-├── admins/            # Administradores de Firebase, Storage y Dispositivo
+├── admins/            # Administradores auxiliares
 │   ├── device_admin.dart
 │   ├── firebase_admin.dart
 │   └── storage_admin.dart
-├── data/              # Estado global y persistencia en memoria
+├── data/              # Estado global en memoria (Singleton)
 │   └── data_holder.dart
-├── fb_objects/        # Modelos de objetos para Cloud Firestore
+├── fb_objects/        # Modelos para Cloud Firestore
 │   ├── mensaje.dart
 │   └── perfil.dart
-├── ins_lib/           # Librería interna de temas y barras de navegación
+├── ins_lib/           # Librería de temas y navegación
 │   ├── bot_bars/ins_bot_bar_style1.dart
 │   └── theme/app_theme.dart
-└── views/             # Vistas de la aplicación
-    ├── edit_profile_view.dart
-    ├── home_profile_gate.dart
+└── views/             # Las 6 Vistas de la aplicación
     ├── home_view.dart
     ├── login_screen.dart
-    ├── message_detail_view.dart
     ├── messages_view.dart
     ├── onboarding_screen.dart
-    ├── profile_view.dart
     ├── register_screen.dart
     └── splash_screen.dart
 ```
@@ -41,15 +37,12 @@ lib/
 
 | Ruta | Vista | Descripción |
 | --- | --- | --- |
-| `/` o `/splash` | `SplashScreen` | Carga inicial y evaluación asíncrona de sesión/onboarding |
+| `/` o `/splash` | `SplashScreen` | Carga inicial e inicialización de sesión |
 | `/onboarding` | `OnboardingScreen` | Tarjetas introductorias deslizables |
 | `/login` | `LoginScreen` | Inicio de sesión con Firebase Authentication |
-| `/register` | `RegisterScreen` | Registro de nuevos usuarios con validación |
-| `/home` | `HomeProfileGate` -> `HomeView` | Puerta de acceso y pantalla principal del perfil |
-| `/profile` | `ProfileView` | Formulario inicial de creación de perfil |
-| `/edit_profile` | `EditProfileView` | Edición de datos y actualización de avatar comprimido |
-| `/messages` | `MessagesView` | Lista en tiempo real de mensajes |
-| `/message_detail` | `MessageDetailView` | Vista detallada de un mensaje seleccionado |
+| `/register` | `RegisterScreen` | Registro de nuevos usuarios |
+| `/home` | `HomeView` | Panel principal del usuario logueado con datos de perfil |
+| `/messages` | `MessagesView` | Lista de mensajes en tiempo real con modal de detalle |
 
 ---
 

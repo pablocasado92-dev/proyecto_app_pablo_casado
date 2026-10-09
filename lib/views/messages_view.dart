@@ -7,9 +7,9 @@ import '../ins_lib/bot_bars/ins_bot_bar_style1.dart';
 import '../ins_lib/theme/app_theme.dart';
 
 /// ============================================================================
-/// FASE 3: VISTA DE MENSAJES (MessagesView)
+/// VISTA DE MENSAJES (MessagesView)
 /// ============================================================================
-/// Muestra la lista de mensajes en tiempo real descargados en `perfilUsuario.mensajes`.
+/// Muestra la lista de mensajes en tiempo real leídos de la colección "Mensajes".
 class MessagesView extends StatefulWidget {
   const MessagesView({super.key});
 
@@ -25,9 +25,16 @@ class _MessagesViewState extends State<MessagesView> {
     super.initState();
     DataHolder.instance.iBotBarIndex = 2;
     DataHolder.instance.sMessagesBadgeText = "";
-    DataHolder.instance.perfilUsuario.marcarMensajesLeidos();
-    DataHolder.instance.perfilUsuario.setOnMessageReceived(mensajeRecibido);
-    iNumeroMensajes = DataHolder.instance.perfilUsuario.mensajes.length;
+    _inicializarMensajes();
+  }
+
+  void _inicializarMensajes() {
+    final perfil = DataHolder.instance.perfilUsuario;
+    perfil.marcarMensajesLeidos();
+    perfil.setOnMessageReceived(mensajeRecibido);
+    setState(() {
+      iNumeroMensajes = perfil.mensajes.length;
+    });
   }
 
   void mensajeRecibido(int iMensajesTotales) {
@@ -38,31 +45,87 @@ class _MessagesViewState extends State<MessagesView> {
   }
 
   void onPressedFloatingButton() {
+    final String myUid = DataHolder.instance.perfilUsuario.uid;
+
     Mensaje mensajeNuevo = Mensaje.initCampos(
       "",
-      "Nuevo Mensaje ${iNumeroMensajes + 1}",
-      "Cuerpo del mensaje recibido en tiempo real",
-      false,
+      "Nuevo mensaje en la colección Mensajes #${iNumeroMensajes + 1}",
+      myUid, // destinatarioUID
+      myUid, // remitenteUID
       Timestamp.now(),
+      titulo: "Mensaje #${iNumeroMensajes + 1}",
     );
 
     DataHolder.instance.perfilUsuario.agregarNuevoMensaje(mensajeNuevo);
   }
 
+  void _mostrarDetalleMensaje(BuildContext context, Mensaje mensaje) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadios.cabecera)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(AppEspacios.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.mail_rounded, color: AppColores.oscuro, size: 28),
+                  const SizedBox(width: AppEspacios.sm),
+                  Expanded(
+                    child: Text(
+                      mensaje.titulo ?? "Detalle del Mensaje",
+                      style: AppTextos.tituloLista,
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(height: AppEspacios.lg),
+              if (mensaje.remitenteUID != null && mensaje.remitenteUID!.isNotEmpty) ...[
+                Text("De: ${mensaje.remitenteUID}", style: AppTextos.secundario),
+                const SizedBox(height: AppEspacios.xs),
+              ],
+              SelectableText(
+                mensaje.cuerpo ?? "Sin contenido",
+                style: AppTextos.cuerpo,
+              ),
+              const SizedBox(height: AppEspacios.lg),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Cerrar"),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget creadorDeItem(BuildContext context, int indice) {
-    Color color = AppColores.suave;
-    String sUrlImg = "https://i.pinimg.com/originals/78/1a/51/781a5128e733c6a36aa6a10814e19548.gif";
+    Color colorIcono = AppColores.oscuro;
+    Color colorFondo = AppColores.suave;
     if (indice % 2 == 0) {
-      color = AppColores.divisor;
-      sUrlImg = "https://media.tenor.com/aGj-frNYMFEAAAAM/cat-cat-dance.gif";
+      colorFondo = AppColores.divisor;
     }
 
-    final mensaje = DataHolder.instance.perfilUsuario.mensajes[indice];
+    final perfil = DataHolder.instance.perfilUsuario;
+    if (indice >= perfil.mensajes.length) {
+      return const SizedBox.shrink();
+    }
+
+    final mensaje = perfil.mensajes[indice];
 
     return GestureDetector(
       onTap: () {
         DataHolder.instance.mensajeSeleccionado = mensaje;
-        Navigator.pushNamed(context, "/message_detail");
+        _mostrarDetalleMensaje(context, mensaje);
       },
       child: Card(
         child: Padding(
@@ -72,14 +135,13 @@ class _MessagesViewState extends State<MessagesView> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(AppRadios.imagen),
                 child: Container(
-                  color: color,
+                  color: colorFondo,
                   width: AppEspacios.imagenLista,
                   height: AppEspacios.imagenLista,
-                  child: Image.network(
-                    sUrlImg,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) =>
-                        const Icon(Icons.mail_rounded, color: AppColores.oscuro),
+                  child: Icon(
+                    Icons.mark_email_read_outlined,
+                    color: colorIcono,
+                    size: 28,
                   ),
                 ),
               ),
@@ -89,14 +151,14 @@ class _MessagesViewState extends State<MessagesView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      mensaje.titulo ?? "Sin título",
+                      mensaje.titulo ?? (mensaje.cuerpo ?? "Sin título"),
                       style: AppTextos.tituloLista,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: AppEspacios.xs),
                     Text(
-                      mensaje.cuerpo ?? "Sin mensaje",
+                      mensaje.cuerpo ?? "Sin contenido",
                       style: AppTextos.secundario,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -128,6 +190,9 @@ class _MessagesViewState extends State<MessagesView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text("Mensajes"),
+      ),
       body: SafeArea(
         bottom: false,
         child: crearLista(),
