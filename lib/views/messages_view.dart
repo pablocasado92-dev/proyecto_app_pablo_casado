@@ -8,9 +8,10 @@ import '../ins_lib/bot_bars/ins_bot_bar_style1.dart';
 import '../ins_lib/theme/app_theme.dart';
 
 /// ============================================================================
-/// VISTA DE MENSAJES (MessagesView)
+/// VISTA DE CHAT / MENSAJES (MessagesView)
 /// ============================================================================
-/// Muestra la lista de mensajes en tiempo real leídos de la colección "Mensajes".
+/// Rediseño en formato conversación / chat en tiempo real con burbujas de diálogo
+/// alineadas a la derecha (enviados) e izquierda (recibidos), con barra de entrada fija.
 class MessagesView extends StatefulWidget {
   const MessagesView({super.key});
 
@@ -19,7 +20,12 @@ class MessagesView extends StatefulWidget {
 }
 
 class _MessagesViewState extends State<MessagesView> {
+  final TextEditingController _mensajeInputController = TextEditingController();
+  final TextEditingController _destinatarioController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+
   int iNumeroMensajes = 0;
+  bool _isSending = false;
 
   @override
   void initState() {
@@ -27,6 +33,14 @@ class _MessagesViewState extends State<MessagesView> {
     DataHolder.instance.iBotBarIndex = 1;
     DataHolder.instance.sMessagesBadgeText = "";
     _inicializarMensajes();
+  }
+
+  @override
+  void dispose() {
+    _mensajeInputController.dispose();
+    _destinatarioController.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   void _inicializarMensajes() {
@@ -38,6 +52,7 @@ class _MessagesViewState extends State<MessagesView> {
       setState(() {
         iNumeroMensajes = perfil.mensajes.length;
       });
+      _scrollToBottom();
     }
   }
 
@@ -46,300 +61,186 @@ class _MessagesViewState extends State<MessagesView> {
     setState(() {
       iNumeroMensajes = iMensajesTotales;
     });
+    _scrollToBottom();
   }
 
-  /// Despliega un diálogo para ingresar el email del destinatario y el cuerpo del mensaje
-  void onPressedFloatingButton() {
-    final TextEditingController emailController = TextEditingController();
-    final TextEditingController cuerpoController = TextEditingController();
-    final GlobalKey<FormState> dialogFormKey = GlobalKey<FormState>();
-    bool isSending = false;
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('Nuevo Mensaje'),
-              content: Form(
-                key: dialogFormKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextFormField(
-                      controller: emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                        labelText: 'Email del destinatario',
-                        prefixIcon: Icon(Icons.email_outlined),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Ingresa el correo del destinatario';
-                        }
-                        if (!value.contains('@') || !value.contains('.')) {
-                          return 'Ingresa un correo válido';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: cuerpoController,
-                      maxLines: 3,
-                      decoration: const InputDecoration(
-                        labelText: 'Contenido del mensaje',
-                        prefixIcon: Icon(Icons.notes_outlined),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Escribe el contenido del mensaje';
-                        }
-                        return null;
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: isSending ? null : () => Navigator.pop(context),
-                  child: const Text('Cancelar'),
-                ),
-                FilledButton(
-                  onPressed: isSending
-                      ? null
-                      : () async {
-                          if (dialogFormKey.currentState!.validate()) {
-                            setDialogState(() {
-                              isSending = true;
-                            });
-
-                            final String rawEmail = emailController.text.trim();
-                            final String destinatarioEmail = rawEmail.toLowerCase();
-                            final String cuerpoTexto = cuerpoController.text.trim();
-
-                            final String myUid = DataHolder.instance.perfilUsuario.uid.isNotEmpty
-                                ? DataHolder.instance.perfilUsuario.uid
-                                : (FirebaseAuth.instance.currentUser?.uid ?? "");
-
-                            String destUid = destinatarioEmail;
-                            bool perfilEncontrado = false;
-
-                            try {
-                              // Buscar el destinatario en Firestore por su correo electrónico
-                              var query = await FirebaseFirestore.instance
-                                  .collection("Perfiles")
-                                  .where("email", isEqualTo: destinatarioEmail)
-                                  .get();
-
-                              if (query.docs.isEmpty) {
-                                query = await FirebaseFirestore.instance
-                                    .collection("Perfiles")
-                                    .where("email", isEqualTo: rawEmail)
-                                    .get();
-                              }
-
-                              if (query.docs.isNotEmpty) {
-                                destUid = query.docs.first.id; // UID del destinatario encontrado
-                                perfilEncontrado = true;
-                              }
-
-                              Mensaje mensajeNuevo = Mensaje.initCampos(
-                                "",
-                                cuerpoTexto,
-                                destUid, // destinatarioUID (UID o Email)
-                                myUid,   // remitenteUID
-                                Timestamp.now(),
-                              );
-
-                              DataHolder.instance.perfilUsuario.agregarNuevoMensaje(mensajeNuevo);
-
-                              if (!context.mounted) return;
-                              Navigator.pop(context);
-
-                              final String textoConfirmacion = perfilEncontrado
-                                  ? 'Mensaje enviado a $rawEmail'
-                                  : 'Mensaje enviado a $rawEmail (guardado por correo)';
-
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text(textoConfirmacion)),
-                              );
-                            } catch (e) {
-                              setDialogState(() {
-                                isSending = false;
-                              });
-                              if (!context.mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Error al enviar mensaje: $e'), backgroundColor: Colors.red),
-                              );
-                            }
-                          }
-                        },
-                  child: isSending
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Text('Enviar'),
-                ),
-              ],
-            );
-          },
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
         );
-      },
-    );
+      }
+    });
   }
 
-  void _mostrarDetalleMensaje(BuildContext context, Mensaje mensaje) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadios.cabecera)),
-      ),
-      builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(AppEspacios.lg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+  /// Envía un mensaje en la conversación de chat
+  Future<void> _enviarMensajeChat() async {
+    final String texto = _mensajeInputController.text.trim();
+    final String destinatarioInput = _destinatarioController.text
+        .trim()
+        .toLowerCase();
+
+    if (texto.isEmpty) return;
+
+    if (destinatarioInput.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Por favor, indica el correo del destinatario en la barra superior.',
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSending = true;
+    });
+
+    final String myUid = DataHolder.instance.perfilUsuario.uid.isNotEmpty
+        ? DataHolder.instance.perfilUsuario.uid
+        : (FirebaseAuth.instance.currentUser?.uid ?? "");
+
+    String destUid = destinatarioInput;
+
+    try {
+      // Buscar si existe el perfil del destinatario en Firestore por su email
+      var query = await FirebaseFirestore.instance
+          .collection("Perfiles")
+          .where("email", isEqualTo: destinatarioInput)
+          .get();
+
+      if (query.docs.isNotEmpty) {
+        destUid = query.docs.first.id;
+      }
+
+      Mensaje mensajeNuevo = Mensaje.initCampos(
+        "",
+        texto,
+        destUid, // destinatarioUID (UID o Email)
+        myUid, // remitenteUID
+        Timestamp.now(),
+      );
+
+      DataHolder.instance.perfilUsuario.agregarNuevoMensaje(mensajeNuevo);
+      _mensajeInputController.clear();
+
+      if (!mounted) return;
+      setState(() {
+        _isSending = false;
+      });
+
+      _scrollToBottom();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isSending = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error enviando mensaje: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  String _formatearHora(Timestamp? timestamp) {
+    if (timestamp == null) return '';
+    final dt = timestamp.toDate();
+    final h = dt.hour.toString().padLeft(2, '0');
+    final m = dt.minute.toString().padLeft(2, '0');
+    return '$h:$m';
+  }
+
+  /// Construye una burbuja de chat para cada mensaje
+  Widget _buildChatBubble(Mensaje mensaje, bool esMio) {
+    final colorBurbuja = esMio ? AppColores.principal : AppColores.suave;
+    final colorTexto = esMio ? Colors.white : AppColores.texto;
+    final alineacion = esMio
+        ? CrossAxisAlignment.end
+        : CrossAxisAlignment.start;
+    final bordes = BorderRadius.only(
+      topLeft: const Radius.circular(16),
+      topRight: const Radius.circular(16),
+      bottomLeft: esMio ? const Radius.circular(16) : const Radius.circular(4),
+      bottomRight: esMio ? const Radius.circular(4) : const Radius.circular(16),
+    );
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 12.0),
+      child: Column(
+        crossAxisAlignment: alineacion,
+        children: [
+          // Si el mensaje es de otra persona, mostrar el remitente
+          if (!esMio)
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 2),
+              child: FutureBuilder<String>(
+                future: DataHolder.instance.getEmailByUid(mensaje.remitenteUID),
+                builder: (context, snapshot) {
+                  return Text(
+                    snapshot.data ?? (mensaje.remitenteUID ?? 'Anónimo'),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  );
+                },
+              ),
+            ),
+
+          // Globo de texto del mensaje
+          Material(
+            elevation: 1,
+            color: colorBurbuja,
+            borderRadius: bordes,
+            child: Container(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.75,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const Icon(Icons.mail_rounded, color: AppColores.oscuro, size: 28),
-                  const SizedBox(width: AppEspacios.sm),
-                  const Expanded(
-                    child: Text(
-                      "Detalle del Mensaje",
-                      style: AppTextos.tituloLista,
+                  SelectableText(
+                    mensaje.cuerpo ?? '',
+                    style: TextStyle(
+                      color: colorTexto,
+                      fontSize: 15,
+                      height: 1.3,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _formatearHora(mensaje.fecha),
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: esMio ? Colors.white70 : Colors.black45,
                     ),
                   ),
                 ],
               ),
-              const Divider(height: AppEspacios.lg),
-              
-              // Mapeo dinámico del UID del remitente a su email en Firestore
-              FutureBuilder<String>(
-                future: DataHolder.instance.getEmailByUid(mensaje.remitenteUID),
-                builder: (context, snapshot) {
-                  final String deTexto = snapshot.data ?? (mensaje.remitenteUID ?? 'Anónimo');
-                  return Text("De: $deTexto", style: AppTextos.secundario);
-                },
-              ),
-              const SizedBox(height: AppEspacios.xs),
-
-              // Mapeo dinámico del UID del destinatario a su email en Firestore
-              FutureBuilder<String>(
-                future: DataHolder.instance.getEmailByUid(mensaje.destinatarioUID),
-                builder: (context, snapshot) {
-                  final String paraTexto = snapshot.data ?? (mensaje.destinatarioUID ?? '');
-                  if (paraTexto.isEmpty) return const SizedBox.shrink();
-                  return Text("Para: $paraTexto", style: AppTextos.secundario);
-                },
-              ),
-              const SizedBox(height: AppEspacios.md),
-
-              SelectableText(
-                mensaje.cuerpo ?? "Sin contenido",
-                style: AppTextos.cuerpo,
-              ),
-              const SizedBox(height: AppEspacios.lg),
-              Align(
-                alignment: Alignment.centerRight,
-                child: FilledButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text("Cerrar"),
-                ),
-              ),
-            ],
+            ),
           ),
-        );
-      },
-    );
-  }
-
-  Widget creadorDeItem(BuildContext context, int indice) {
-    Color colorIcono = AppColores.oscuro;
-    Color colorFondo = AppColores.suave;
-    if (indice % 2 == 0) {
-      colorFondo = AppColores.divisor;
-    }
-
-    final perfil = DataHolder.instance.perfilUsuario;
-    if (indice >= perfil.mensajes.length) {
-      return const SizedBox.shrink();
-    }
-
-    final mensaje = perfil.mensajes[indice];
-
-    return GestureDetector(
-      onTap: () {
-        DataHolder.instance.mensajeSeleccionado = mensaje;
-        _mostrarDetalleMensaje(context, mensaje);
-      },
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(AppEspacios.md - AppEspacios.xs),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadios.imagen),
-                child: Container(
-                  color: colorFondo,
-                  width: AppEspacios.imagenLista,
-                  height: AppEspacios.imagenLista,
-                  child: Icon(
-                    Icons.mark_email_read_outlined,
-                    color: colorIcono,
-                    size: 28,
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppEspacios.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      mensaje.cuerpo ?? "Sin contenido",
-                      style: AppTextos.tituloLista,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: AppEspacios.xs),
-
-                    // Mapeo dinámico del UID del remitente a su email desde Firestore
-                    FutureBuilder<String>(
-                      future: DataHolder.instance.getEmailByUid(mensaje.remitenteUID),
-                      builder: (context, snapshot) {
-                        final String emailRemitente = snapshot.data ?? (mensaje.remitenteUID ?? 'Anónimo');
-                        return Text(
-                          "De: $emailRemitente",
-                          style: AppTextos.secundario,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right_rounded, color: AppColores.textoSecundario),
-            ],
-          ),
-        ),
+        ],
       ),
     );
   }
 
-  Widget creadorDeSeparador(BuildContext context, int indice) {
-    return const SizedBox(height: AppEspacios.md - AppEspacios.xs);
-  }
+  /// Construye la lista de burbujas de chat
+  Widget _buildListaChat() {
+    final perfil = DataHolder.instance.perfilUsuario;
+    final myUid = perfil.uid.toLowerCase();
+    final myEmail =
+        (FirebaseAuth.instance.currentUser?.email ?? perfil.email ?? "")
+            .toLowerCase();
 
-  Widget crearLista() {
-    // Si la lista está vacía, se muestra un estado visual indicándolo claramente
     if (iNumeroMensajes == 0) {
       return Center(
         child: Padding(
@@ -348,13 +249,13 @@ class _MessagesViewState extends State<MessagesView> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                Icons.mark_email_read_outlined,
+                Icons.chat_bubble_outline_rounded,
                 size: 80,
                 color: AppColores.textoSecundario.withValues(alpha: 0.5),
               ),
               const SizedBox(height: AppEspacios.md),
               const Text(
-                'No tienes ningún mensaje',
+                'No hay conversación iniciada',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 18,
@@ -364,7 +265,7 @@ class _MessagesViewState extends State<MessagesView> {
               ),
               const SizedBox(height: AppEspacios.sm),
               const Text(
-                'Pulsa el botón + para enviar un mensaje a otro usuario.',
+                'Escribe el email de un destinatario en la barra inferior y envía tu primer mensaje.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
@@ -377,11 +278,121 @@ class _MessagesViewState extends State<MessagesView> {
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(AppEspacios.md, AppEspacios.md, AppEspacios.md, AppEspacios.xl * 3),
-      itemCount: iNumeroMensajes,
-      itemBuilder: creadorDeItem,
-      separatorBuilder: creadorDeSeparador,
+    return ListView.builder(
+      controller: _scrollController,
+      padding: const EdgeInsets.only(top: 12, bottom: 16),
+      itemCount: perfil.mensajes.length,
+      itemBuilder: (context, index) {
+        final mensaje = perfil.mensajes[index];
+        final rem = (mensaje.remitenteUID ?? "").toLowerCase();
+
+        // Evaluar si el mensaje fue enviado por el usuario actual
+        final bool esMio =
+            (myUid.isNotEmpty && rem == myUid) ||
+            (myEmail.isNotEmpty && rem == myEmail);
+
+        return _buildChatBubble(mensaje, esMio);
+      },
+    );
+  }
+
+  /// Barra fija de entrada de texto e interacción de chat en la parte inferior
+  Widget _buildBarraEntradaChat() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 8,
+            offset: Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Campo compacto para ingresar/confirmar el destinatario
+            SizedBox(
+              height: 38,
+              child: TextField(
+                controller: _destinatarioController,
+                keyboardType: TextInputType.emailAddress,
+                style: const TextStyle(fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: 'Para (correo del destinatario)...',
+                  prefixIcon: const Icon(Icons.alternate_email, size: 18),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 0,
+                  ),
+                  filled: true,
+                  fillColor: AppColores.suave,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Campo de escritura de mensaje + Botón circular de envío
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _mensajeInputController,
+                    textCapitalization: TextCapitalization.sentences,
+                    maxLines: 3,
+                    minLines: 1,
+                    decoration: InputDecoration(
+                      hintText: 'Escribe un mensaje...',
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      filled: true,
+                      fillColor: AppColores.fondo,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Botón circular de enviar
+                IconButton.filled(
+                  onPressed: _isSending ? null : _enviarMensajeChat,
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColores.principal,
+                    padding: const EdgeInsets.all(12),
+                  ),
+                  icon: _isSending
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.send_rounded,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -389,22 +400,19 @@ class _MessagesViewState extends State<MessagesView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Mensajes"),
+        title: const Text("Chat de Mensajes"),
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
-      body: SafeArea(
-        bottom: false,
-        child: crearLista(),
+      body: Column(
+        children: [
+          Expanded(child: _buildListaChat()),
+          _buildBarraEntradaChat(),
+        ],
       ),
       bottomNavigationBar: InsBotBarStyle1(
         blBadge1: DataHolder.instance.blNotificacionesBadge,
         sBadge2: DataHolder.instance.sMessagesBadgeText,
         iBarIndex: DataHolder.instance.iBotBarIndex,
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: onPressedFloatingButton,
-        icon: const Icon(Icons.add),
-        label: const Text('Nuevo Mensaje'),
-        tooltip: 'Nuevo Mensaje',
       ),
     );
   }

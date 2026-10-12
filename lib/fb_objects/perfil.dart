@@ -5,6 +5,7 @@
 //     Perfiles/{uid}   ->  { name, edad, email, urlAvatar?, fechaRegistro }
 // =====================================================================
 import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -34,11 +35,12 @@ class Perfil {
   /// Fecha y hora de creación de la cuenta/perfil.
   Timestamp? fechaRegistro;
 
-  /// Mensajes recibidos pertenecientes al usuario.
+  /// Mensajes pertenecientes a la conversación del usuario.
   List<Mensaje> mensajes = <Mensaje>[];
 
   /// Suscripción al Stream de Firestore para evitar listeners duplicados
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _messagesSubscription;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+  _messagesSubscription;
 
   /// CALLBACK: se llama cuando cambian los mensajes en tiempo real.
   Function(int numeroMensajes)? onMessageReceived;
@@ -85,13 +87,14 @@ class Perfil {
     };
   }
 
-  /// Empieza a escuchar EN TIEMPO REAL los MENSAJES RECIBIDOS del usuario desde Firestore.
+  /// Empieza a escuchar EN TIEMPO REAL los MENSAJES de la conversación del usuario desde Firestore.
   /// Cancela la suscripción anterior para evitar duplicaciones por múltiples escuchas.
   Future<void> descargarMensajes() async {
     await _messagesSubscription?.cancel();
 
     final String authUid = FirebaseAuth.instance.currentUser?.uid ?? uid;
-    final String authEmail = FirebaseAuth.instance.currentUser?.email ?? email ?? "";
+    final String authEmail =
+        FirebaseAuth.instance.currentUser?.email ?? email ?? "";
 
     final String myUidClean = authUid.trim().toLowerCase();
     final String userEmailClean = (email ?? authEmail).trim().toLowerCase();
@@ -100,28 +103,46 @@ class Perfil {
     if (myUidClean.isEmpty && userEmailClean.isEmpty) return;
 
     // Escuchar la colección principal "Mensajes" en tiempo real
-    final queryMensajes = db.collection("Mensajes").limit(50);
+    final queryMensajes = db.collection("Mensajes").limit(100);
 
-    _messagesSubscription = queryMensajes.snapshots().listen(
-      (event) {
-        mensajes.clear();
-        for (var docSnapshot in event.docs) {
-          Map<String, dynamic> fila = docSnapshot.data();
-          final String dest = (fila["destinatarioUID"] as String? ?? "").trim().toLowerCase();
+    _messagesSubscription = queryMensajes.snapshots().listen((event) {
+      mensajes.clear();
+      for (var docSnapshot in event.docs) {
+        Map<String, dynamic> fila = docSnapshot.data();
+        final String dest = (fila["destinatarioUID"] as String? ?? "")
+            .trim()
+            .toLowerCase();
+        final String rem = (fila["remitenteUID"] as String? ?? "")
+            .trim()
+            .toLowerCase();
 
-          // Filtrar EXCLUSIVAMENTE los mensajes RECIBIDOS por este usuario (coincidencia por UID o Email)
-          final bool esParaMi = (myUidClean.isNotEmpty && dest == myUidClean) ||
-              (userEmailClean.isNotEmpty && dest == userEmailClean) ||
-              (authEmailClean.isNotEmpty && dest == authEmailClean);
+        // Filtrar mensajes enviados O recibidos por este usuario para construir la conversación del chat
+        final bool esParaMi =
+            (myUidClean.isNotEmpty && dest == myUidClean) ||
+            (userEmailClean.isNotEmpty && dest == userEmailClean) ||
+            (authEmailClean.isNotEmpty && dest == authEmailClean);
 
-          if (esParaMi) {
-            mensajes.add(Mensaje(docSnapshot.id, fila));
-          }
+        final bool esDeMi =
+            (myUidClean.isNotEmpty && rem == myUidClean) ||
+            (userEmailClean.isNotEmpty && rem == userEmailClean) ||
+            (authEmailClean.isNotEmpty && rem == authEmailClean);
+
+        if (esParaMi || esDeMi) {
+          mensajes.add(Mensaje(docSnapshot.id, fila));
         }
-        onMessageReceived?.call(mensajes.length);
-      },
-      onError: (error) => debugPrint("Error escuchando mensajes: $error"),
-    );
+      }
+
+      // Ordenar cronológicamente por fecha para el flujo de conversación del chat
+      mensajes.sort((a, b) {
+        final aFecha =
+            a.fecha?.toDate() ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bFecha =
+            b.fecha?.toDate() ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return aFecha.compareTo(bFecha);
+      });
+
+      onMessageReceived?.call(mensajes.length);
+    }, onError: (error) => debugPrint("Error escuchando mensajes: $error"));
   }
 
   /// Añade un mensaje nuevo a Firestore.
