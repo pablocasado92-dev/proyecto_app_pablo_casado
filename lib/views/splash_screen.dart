@@ -8,10 +8,7 @@ import '../data/data_holder.dart';
 /// PANTALLA DE CARGA INICIAL (SplashScreen)
 /// ============================================================================
 /// Primera vista mostrada siempre al abrir o reiniciar la aplicación.
-/// Evalúa el estado de inicio de sesión de Firebase Auth y de onboarding:
-///  - Si NO ha visto el onboarding -> Redirige a '/onboarding'.
-///  - Si TIENE sesión activa -> Descarga perfil y va directamente a '/home'.
-///  - Si NO tiene sesión activa -> Redirige a '/login'.
+/// Muestra un GIF animado de Giphy y evalúa la sesión del usuario.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -31,8 +28,8 @@ class _SplashScreenState extends State<SplashScreen> {
     // 1. Inicializar el administrador de dispositivo
     DataHolder.instance.initDeviceAdmin(context);
 
-    // 2. Tiempo de carga visual del Splash Screen (1.5 segundos)
-    await Future.delayed(const Duration(milliseconds: 1500));
+    // 2. Tiempo de carga visual para apreciar la animación (2.5 segundos)
+    await Future.delayed(const Duration(milliseconds: 2500));
 
     // 3. Consultar en SharedPreferences si ya se vio el onboarding
     final prefs = await SharedPreferences.getInstance();
@@ -65,8 +62,33 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Icono del Splash Screen
-            const Icon(Icons.flutter_dash, size: 100, color: Colors.white),
+            // GIF animado cargado desde Giphy
+            ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Image.network(
+                'https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExOW5qOXozaTR2dm91MjU4c2s0czFqNG9yNW16c2cxNnc3Ym85N21tdyZlcD12MV_pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/oVLqOvUWz2fUheuGNz/giphy.gif',
+                height: 220,
+                width: 220,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return const SizedBox(
+                    height: 220,
+                    width: 220,
+                    child: Center(
+                      child: CircularProgressIndicator(color: Colors.white),
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return const Icon(
+                    Icons.movie_creation_outlined,
+                    size: 100,
+                    color: Colors.white,
+                  );
+                },
+              ),
+            ),
             const SizedBox(height: 24),
             const Text(
               'Proyecto App',

@@ -6,7 +6,6 @@
 // tree, read text, and verify that the values of widget properties are correct.
 
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:proyecto_app_pablo_casado/main.dart';
 
 void main() {
@@ -18,6 +17,6 @@ void main() {
     expect(find.text('Proyecto App'), findsOneWidget);
 
     // Avanzar el tiempo para completar el temporizador del Splash Screen
-    await tester.pump(const Duration(milliseconds: 1500));
+    await tester.pump(const Duration(milliseconds: 2500));
   });
 }
