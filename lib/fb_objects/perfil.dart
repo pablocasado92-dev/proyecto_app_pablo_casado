@@ -42,6 +42,9 @@ class Perfil {
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
   _messagesSubscription;
 
+  /// Lista de oyentes/observadores de mensajes en tiempo real
+  final List<Function(int numeroMensajes)> _messageListeners = [];
+
   /// CALLBACK: se llama cuando cambian los mensajes en tiempo real.
   Function(int numeroMensajes)? onMessageReceived;
 
@@ -58,6 +61,29 @@ class Perfil {
   /// Registra la función que se llamará cuando cambien los mensajes.
   void setOnMessageReceived(Function(int numeroMensajes)? onMessageReceived) {
     this.onMessageReceived = onMessageReceived;
+    if (onMessageReceived != null) {
+      addOnMessageReceivedListener(onMessageReceived);
+    }
+  }
+
+  /// Añade un oyente de mensajes sin sobrescribir los anteriores
+  void addOnMessageReceivedListener(Function(int numeroMensajes) listener) {
+    if (!_messageListeners.contains(listener)) {
+      _messageListeners.add(listener);
+    }
+  }
+
+  /// Remueve un oyente específico al cerrar o destruir la pantalla
+  void removeOnMessageReceivedListener(Function(int numeroMensajes) listener) {
+    _messageListeners.remove(listener);
+  }
+
+  /// Notifica a todos los oyentes activos
+  void _notifyMessageListeners(int count) {
+    onMessageReceived?.call(count);
+    for (var listener in List.of(_messageListeners)) {
+      listener(count);
+    }
   }
 
   /// Constructor "factory" para LEER de Firestore.
@@ -141,7 +167,7 @@ class Perfil {
         return aFecha.compareTo(bFecha);
       });
 
-      onMessageReceived?.call(mensajes.length);
+      _notifyMessageListeners(mensajes.length);
     }, onError: (error) => debugPrint("Error escuchando mensajes: $error"));
   }
 
@@ -163,5 +189,6 @@ class Perfil {
   /// Libera la suscripción al cerrar sesión o destruir el perfil
   void dispose() {
     _messagesSubscription?.cancel();
+    _messageListeners.clear();
   }
 }

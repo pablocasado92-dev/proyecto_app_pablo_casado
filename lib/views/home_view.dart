@@ -47,21 +47,23 @@ class _HomeViewState extends State<HomeView> {
   Widget build(BuildContext context) {
     DataHolder.instance.iBotBarIndex = 0;
     final User? firebaseUser = FirebaseAuth.instance.currentUser;
+    final perfilMemoria = DataHolder.instance.perfilUsuario;
 
     final String userEmail =
-        firebaseUser?.email ??
-        (DataHolder.instance.userEmail.isNotEmpty
-            ? DataHolder.instance.userEmail
-            : 'Invitado');
+        (perfilMemoria.email != null && perfilMemoria.email!.isNotEmpty)
+        ? perfilMemoria.email!
+        : (firebaseUser?.email ?? 'Invitado');
+
     final String userName =
-        firebaseUser?.displayName ??
-        (DataHolder.instance.userName.isNotEmpty
-            ? DataHolder.instance.userName
-            : 'Usuario');
+        (perfilMemoria.name != null && perfilMemoria.name!.isNotEmpty)
+        ? perfilMemoria.name!
+        : (firebaseUser?.displayName ?? 'Usuario');
+
+    final String? avatarUrl = perfilMemoria.urlAvatar;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Panel Principal (Home View)'),
+        title: const Text('Panel Principal'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           IconButton(
@@ -89,14 +91,20 @@ class _HomeViewState extends State<HomeView> {
                   padding: const EdgeInsets.all(24.0),
                   child: Column(
                     children: [
-                      const CircleAvatar(
-                        radius: 40,
+                      CircleAvatar(
+                        radius: 45,
                         backgroundColor: Colors.deepPurple,
-                        child: Icon(
-                          Icons.person,
-                          size: 50,
-                          color: Colors.white,
-                        ),
+                        backgroundImage:
+                            (avatarUrl != null && avatarUrl.isNotEmpty)
+                            ? NetworkImage(avatarUrl)
+                            : null,
+                        child: (avatarUrl == null || avatarUrl.isEmpty)
+                            ? const Icon(
+                                Icons.person,
+                                size: 50,
+                                color: Colors.white,
+                              )
+                            : null,
                       ),
                       const SizedBox(height: 16),
                       Text(
@@ -106,31 +114,26 @@ class _HomeViewState extends State<HomeView> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Text(
                         userEmail,
                         style: const TextStyle(
-                          fontSize: 16,
+                          fontSize: 15,
                           color: Colors.grey,
                         ),
                       ),
+                      if (perfilMemoria.edad != null) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          'Edad: ${perfilMemoria.edad} años',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.deepPurple.shade700,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ],
-                  ),
-                ),
-              ),
-              const Spacer(),
-
-              // Botón inferior para cerrar sesión
-              ElevatedButton.icon(
-                onPressed: () => _signOut(context),
-                icon: const Icon(Icons.logout),
-                label: const Text('Cerrar Sesión'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red.shade400,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
               ),

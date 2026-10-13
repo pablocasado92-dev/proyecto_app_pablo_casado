@@ -17,7 +17,7 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   // Controlador del PageView para gestionar el desplazamiento entre páginas
   final PageController _pageController = PageController();
-  
+
   // Índice de la página actualmente visible
   int _currentPage = 0;
 
@@ -25,19 +25,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final List<OnboardingItem> _items = [
     OnboardingItem(
       title: 'Bienvenido a la App',
-      description: 'Descubre todas las funcionalidades increíbles que tenemos preparadas para ti.',
+      description: 'De momento hay poco pero irá viniendo',
       icon: Icons.explore,
       color: Colors.deepPurple,
     ),
     OnboardingItem(
-      title: 'Conéctate con la Nube',
-      description: 'Sincroniza tus datos en tiempo real gracias a nuestra integración con Firebase y Firestore.',
+      title: 'Conectado a internet',
+      description: 'Chatea con tus amigos de forma sencilla',
       icon: Icons.cloud_sync,
       color: Colors.indigo,
     ),
     OnboardingItem(
       title: 'Empieza a Disfrutar',
-      description: 'Todo está listo para comenzar. ¡Pulsa el botón de abajo y descubre la experiencia!',
+      description: 'Ya casi está, solo queda un paso',
       icon: Icons.rocket_launch,
       color: Colors.deepOrange,
     ),
@@ -63,7 +63,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           children: [
             // Botón Superior Derecho para Saltar el Onboarding
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 8.0,
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -72,13 +75,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       onPressed: _completeOnboarding,
                       child: const Text(
                         'Saltar',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                 ],
               ),
             ),
-            
+
             // Área de Páginas Deslizables (PageView)
             Expanded(
               child: PageView.builder(
@@ -105,14 +111,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             color: item.color.withValues(alpha: 0.1),
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(
-                            item.icon,
-                            size: 100,
-                            color: item.color,
-                          ),
+                          child: Icon(item.icon, size: 100, color: item.color),
                         ),
                         const SizedBox(height: 48),
-                        
+
                         // Título de la página
                         Text(
                           item.title,
@@ -124,7 +126,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        
+
                         // Descripción explicativa
                         Text(
                           item.description,
@@ -141,7 +143,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 },
               ),
             ),
-            
+
             // Indicadores de Puntos Centrados y Botones de Navegación Inferior
             Padding(
               padding: const EdgeInsets.all(24.0),
@@ -167,7 +169,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Fila de Botones: Anterior / (Siguiente o Comenzar)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -183,8 +185,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               },
                               child: const Text('Anterior'),
                             )
-                          : const SizedBox(width: 70), // Espaciador para mantener alineación
-                      
+                          : const SizedBox(
+                              width: 70,
+                            ), // Espaciador para mantener alineación
                       // Botón Siguiente / Comenzar
                       ElevatedButton(
                         onPressed: () {
@@ -209,8 +212,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           ),
                         ),
                         child: Text(
-                          _currentPage == _items.length - 1 ? 'Comenzar' : 'Siguiente',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          _currentPage == _items.length - 1
+                              ? 'Comenzar'
+                              : 'Siguiente',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ],

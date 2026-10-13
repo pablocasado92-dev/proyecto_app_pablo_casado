@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../data/data_holder.dart';
+
+/// ============================================================================
 /// PANTALLA DE REGISTRO DE USUARIOS (RegisterScreen)
 /// ============================================================================
 /// Esta vista permite crear una nueva cuenta de usuario en Firebase Authentication,
@@ -23,6 +25,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+
+  // Selección de edad mediante menú desplegable (1 a 100 años)
+  int? _selectedEdad;
 
   // Estados locales para la visibilidad de contraseña y carga
   bool _obscurePassword = true;
@@ -48,20 +53,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       try {
         // 2. Crear el nuevo usuario en Firebase Authentication
-        UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
-        );
+        UserCredential userCredential = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(
+              email: _emailController.text.trim(),
+              password: _passwordController.text.trim(),
+            );
 
         final String uid = userCredential.user!.uid;
 
         // 3. Guardar el nombre completo (displayName) en el perfil de Firebase Auth
-        await userCredential.user?.updateDisplayName(_nameController.text.trim());
+        await userCredential.user?.updateDisplayName(
+          _nameController.text.trim(),
+        );
 
         // 4. Crear el documento de perfil en la colección "Perfiles" de Firestore
         final nuevoPerfil = Perfil(
           uid: uid,
           name: _nameController.text.trim(),
+          edad: _selectedEdad,
           email: _emailController.text.trim(),
           fechaRegistro: Timestamp.now(),
         );
@@ -115,7 +124,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         });
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error inesperado: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Error inesperado: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -157,13 +169,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const Text(
                     'Completa los datos para comenzar',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Campo de Texto: Nombre Completo
                   TextFormField(
                     controller: _nameController,
@@ -182,7 +191,38 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  
+
+                  // Menú Desplegable: Selección de Edad (1 a 100 años)
+                  DropdownButtonFormField<int>(
+                    initialValue: _selectedEdad,
+                    decoration: InputDecoration(
+                      labelText: 'Edad',
+                      prefixIcon: const Icon(Icons.cake_outlined),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    items: List.generate(100, (index) {
+                      final edad = index + 1;
+                      return DropdownMenuItem<int>(
+                        value: edad,
+                        child: Text('$edad años'),
+                      );
+                    }),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedEdad = value;
+                      });
+                    },
+                    validator: (value) {
+                      if (value == null) {
+                        return 'Por favor selecciona tu edad';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
                   // Campo de Texto: Correo Electrónico
                   TextFormField(
                     controller: _emailController,
@@ -205,7 +245,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Campo de Texto: Contraseña
                   TextFormField(
                     controller: _passwordController,
@@ -240,7 +280,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Campo de Texto: Confirmar Contraseña
                   TextFormField(
                     controller: _confirmPasswordController,
@@ -275,7 +315,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Botón Principal de Registro
                   ElevatedButton(
                     onPressed: _isLoading ? null : _handleRegister,

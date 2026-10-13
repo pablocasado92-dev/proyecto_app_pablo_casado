@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+
 import '../data/data_holder.dart';
 
 /// ============================================================================
@@ -24,7 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // Variables de estado local para la UI
   bool _obscurePassword = true; // Controla la visibilidad de la contraseña
-  bool _isLoading = false;      // Indica si se está procesando la solicitud
+  bool _isLoading = false; // Indica si se está procesando la solicitud
 
   @override
   void dispose() {
@@ -92,7 +93,10 @@ class _LoginScreenState extends State<LoginScreen> {
         });
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error inesperado: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Error inesperado: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -117,13 +121,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   // Icono superior descriptivo
                   const Icon(
-                    Icons.lock_person_rounded,
-                    size: 80,
+                    Icons.lock_outline,
+                    size: 100,
                     color: Colors.deepPurple,
                   ),
                   const SizedBox(height: 32),
                   const Text(
-                    '¡Bienvenido de nuevo!',
+                    'Hola ke ase?!',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 24,
@@ -135,13 +139,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   const Text(
                     'Inicia sesión para continuar',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
                   ),
                   const SizedBox(height: 32),
-                  
+
                   // Campo de Texto: Correo Electrónico
                   TextFormField(
                     controller: _emailController,
@@ -164,7 +165,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Campo de Texto: Contraseña
                   TextFormField(
                     controller: _passwordController,
@@ -199,7 +200,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Botón Principal de Iniciar Sesión
                   ElevatedButton(
                     onPressed: _isLoading ? null : _handleLogin,
@@ -229,7 +230,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Enlace hacia la pantalla de Registro mediante ruta nombrada
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,

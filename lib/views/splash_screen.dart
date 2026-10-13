@@ -67,8 +67,8 @@ class _SplashScreenState extends State<SplashScreen> {
               borderRadius: BorderRadius.circular(20),
               child: Image.network(
                 'https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExOW5qOXozaTR2dm91MjU4c2s0czFqNG9yNW16c2cxNnc3Ym85N21tdyZlcD12MV_pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/oVLqOvUWz2fUheuGNz/giphy.gif',
-                height: 220,
-                width: 220,
+                height: 300,
+                width: 300,
                 fit: BoxFit.cover,
                 loadingBuilder: (context, child, loadingProgress) {
                   if (loadingProgress == null) return child;
