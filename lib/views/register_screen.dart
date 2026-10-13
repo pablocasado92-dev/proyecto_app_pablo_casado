@@ -1,10 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../data/data_holder.dart';
-import '../fb_objects/perfil.dart';
+import 'package:flutter/material.dart';
 
-/// ============================================================================
+import '../data/data_holder.dart';
 /// PANTALLA DE REGISTRO DE USUARIOS (RegisterScreen)
 /// ============================================================================
 /// Esta vista permite crear una nueva cuenta de usuario en Firebase Authentication,

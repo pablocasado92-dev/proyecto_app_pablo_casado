@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../../data/data_holder.dart';
+
 /// =====================================================================
 /// InsBotBarStyle1 — BARRA DE NAVEGACIÓN INFERIOR REUTILIZABLE
 /// ---------------------------------------------------------------------
 /// Componente de barra de navegación inferior con 2 pestañas:
 ///   0 Principal -> "/home"
-///   1 Mensajes  -> "/messages"
+///   1 Mensajes  -> "/conversaciones"
 /// =====================================================================
 class InsBotBarStyle1 extends StatefulWidget {
   final bool blBadge1;
@@ -24,13 +26,11 @@ class InsBotBarStyle1 extends StatefulWidget {
 }
 
 class _InsBotBarStyle1State extends State<InsBotBarStyle1> {
-  late String _sBadge2;
   late int _iBarIndex;
 
   @override
   void initState() {
     super.initState();
-    _sBadge2 = widget.sBadge2;
     _iBarIndex = widget.iBarIndex;
   }
 
@@ -42,10 +42,7 @@ class _InsBotBarStyle1State extends State<InsBotBarStyle1> {
         Navigator.popAndPushNamed(context, "/home");
         break;
       case 1:
-        setState(() {
-          _sBadge2 = "";
-        });
-        Navigator.popAndPushNamed(context, "/messages");
+        Navigator.popAndPushNamed(context, "/conversaciones");
         break;
     }
     setState(() {
@@ -55,6 +52,8 @@ class _InsBotBarStyle1State extends State<InsBotBarStyle1> {
 
   @override
   Widget build(BuildContext context) {
+    final bool hayMensajesSinLeer = DataHolder.instance.tieneMensajesSinLeer();
+
     return NavigationBar(
       onDestinationSelected: _onItemSelected,
       selectedIndex: _iBarIndex,
@@ -66,13 +65,15 @@ class _InsBotBarStyle1State extends State<InsBotBarStyle1> {
         ),
         NavigationDestination(
           selectedIcon: Badge(
-            isLabelVisible: _sBadge2.isNotEmpty,
-            label: Text(_sBadge2),
+            isLabelVisible: hayMensajesSinLeer,
+            backgroundColor: Colors.red,
+            smallSize: 10,
             child: const Icon(Icons.chat_bubble_rounded),
           ),
           icon: Badge(
-            isLabelVisible: _sBadge2.isNotEmpty,
-            label: Text(_sBadge2),
+            isLabelVisible: hayMensajesSinLeer,
+            backgroundColor: Colors.red,
+            smallSize: 10,
             child: const Icon(Icons.chat_bubble_outline_rounded),
           ),
           label: 'Mensajes',

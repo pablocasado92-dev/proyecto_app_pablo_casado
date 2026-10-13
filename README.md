@@ -4,9 +4,9 @@ Aplicación móvil y web desarrollada en Flutter con Firebase (Auth, Firestore y
 
 ---
 
-## 🏛️ Arquitectura y Estructura Simplificada del Proyecto
+## 🏛️ Arquitectura y Estructura del Proyecto
 
-El proyecto se compone exactamente de las **6 vistas principales** requeridas:
+El proyecto está organizado en las siguientes capas y vistas:
 
 ```text
 lib/
@@ -16,16 +16,18 @@ lib/
 │   └── storage_admin.dart
 ├── data/              # Estado global en memoria (Singleton)
 │   └── data_holder.dart
-├── fb_objects/        # Modelos para Cloud Firestore
+├── fb_objects/        # Objetos modelo para Cloud Firestore
+│   ├── conversacion.dart
 │   ├── mensaje.dart
 │   └── perfil.dart
-├── ins_lib/           # Librería de temas y navegación
+├── ins_lib/           # Librería interna de temas y navegación
 │   ├── bot_bars/ins_bot_bar_style1.dart
 │   └── theme/app_theme.dart
-└── views/             # Las 6 Vistas de la aplicación
+└── views/             # Vistas de la aplicación
+    ├── chat_screen.dart
+    ├── conversaciones_view.dart
     ├── home_view.dart
     ├── login_screen.dart
-    ├── messages_view.dart
     ├── onboarding_screen.dart
     ├── register_screen.dart
     └── splash_screen.dart
@@ -42,7 +44,8 @@ lib/
 | `/login` | `LoginScreen` | Inicio de sesión con Firebase Authentication |
 | `/register` | `RegisterScreen` | Registro de nuevos usuarios |
 | `/home` | `HomeView` | Panel principal del usuario logueado con datos de perfil |
-| `/messages` | `MessagesView` | Lista de mensajes en tiempo real con modal de detalle |
+| `/conversaciones` (o `/messages`) | `ConversacionesView` | Lista de conversaciones activas agrupadas por contacto |
+| `/chat` | `ChatScreen` | Pantalla de conversación individual 1 a 1 en tiempo real |
 
 ---
 

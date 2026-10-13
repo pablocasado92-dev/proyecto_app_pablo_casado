@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+
 import '../data/data_holder.dart';
 import '../ins_lib/bot_bars/ins_bot_bar_style1.dart';
 
@@ -7,9 +8,31 @@ import '../ins_lib/bot_bars/ins_bot_bar_style1.dart';
 /// PANTALLA PRINCIPAL (HomeView)
 /// ============================================================================
 /// Panel de control del usuario autenticado. Muestra los datos de la cuenta
-/// e integra la barra de navegación inferior (`InsBotBarStyle1`).
-class HomeView extends StatelessWidget {
+/// e integra la barra de navegación inferior (`InsBotBarStyle1`) con escucha activa.
+class HomeView extends StatefulWidget {
   const HomeView({super.key});
+
+  @override
+  State<HomeView> createState() => _HomeViewState();
+}
+
+class _HomeViewState extends State<HomeView> {
+  @override
+  void initState() {
+    super.initState();
+    DataHolder.instance.iBotBarIndex = 0;
+    _inicializarEscuchaMensajes();
+  }
+
+  void _inicializarEscuchaMensajes() {
+    final perfil = DataHolder.instance.perfilUsuario;
+    perfil.setOnMessageReceived((_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+    perfil.descargarMensajes();
+  }
 
   /// Realiza el cierre de sesión del usuario
   Future<void> _signOut(BuildContext context) async {
@@ -24,11 +47,17 @@ class HomeView extends StatelessWidget {
   Widget build(BuildContext context) {
     DataHolder.instance.iBotBarIndex = 0;
     final User? firebaseUser = FirebaseAuth.instance.currentUser;
-    
-    final String userEmail = firebaseUser?.email ?? 
-        (DataHolder.instance.userEmail.isNotEmpty ? DataHolder.instance.userEmail : 'Invitado');
-    final String userName = firebaseUser?.displayName ?? 
-        (DataHolder.instance.userName.isNotEmpty ? DataHolder.instance.userName : 'Usuario');
+
+    final String userEmail =
+        firebaseUser?.email ??
+        (DataHolder.instance.userEmail.isNotEmpty
+            ? DataHolder.instance.userEmail
+            : 'Invitado');
+    final String userName =
+        firebaseUser?.displayName ??
+        (DataHolder.instance.userName.isNotEmpty
+            ? DataHolder.instance.userName
+            : 'Usuario');
 
     return Scaffold(
       appBar: AppBar(
@@ -49,7 +78,7 @@ class HomeView extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 20),
-              
+
               // Tarjeta visual con los datos del usuario logueado
               Card(
                 elevation: 4,
@@ -90,7 +119,7 @@ class HomeView extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              
+
               // Botón inferior para cerrar sesión
               ElevatedButton.icon(
                 onPressed: () => _signOut(context),

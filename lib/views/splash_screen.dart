@@ -1,14 +1,17 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../data/data_holder.dart';
 
 /// ============================================================================
 /// PANTALLA DE CARGA INICIAL (SplashScreen)
 /// ============================================================================
-/// Primera vista mostrada siempre al abrir la aplicación.
-/// Muestra el logo y evalúa si es la primera vez que se entra en la app:
-///  - Si NO ha entrado ninguna vez -> Redirige a '/onboarding'.
-///  - Si YA ha entrado previamente -> Redirige a '/login'.
+/// Primera vista mostrada siempre al abrir o reiniciar la aplicación.
+/// Evalúa el estado de inicio de sesión de Firebase Auth y de onboarding:
+///  - Si NO ha visto el onboarding -> Redirige a '/onboarding'.
+///  - Si TIENE sesión activa -> Descarga perfil y va directamente a '/home'.
+///  - Si NO tiene sesión activa -> Redirige a '/login'.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -23,7 +26,7 @@ class _SplashScreenState extends State<SplashScreen> {
     _checkInitialRoute();
   }
 
-  /// Evalúa si el usuario ya vio el onboarding para decidir el destino
+  /// Evalúa el estado de sesión y onboarding para decidir el destino de navegación
   Future<void> _checkInitialRoute() async {
     // 1. Inicializar el administrador de dispositivo
     DataHolder.instance.initDeviceAdmin(context);
@@ -35,13 +38,21 @@ class _SplashScreenState extends State<SplashScreen> {
     final prefs = await SharedPreferences.getInstance();
     final bool seenOnboarding = prefs.getBool('has_seen_onboarding') ?? false;
 
+    // 4. Consultar si hay una sesión de usuario activa en Firebase Auth
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+
     if (!mounted) return;
 
-    // 4. Lógica estricta de navegación solicitada:
-    // Si no ha entrado ninguna vez -> Onboarding. Sino -> Login.
+    // 5. Lógica de navegación inteligente de sesión:
     if (!seenOnboarding) {
       Navigator.pushReplacementNamed(context, '/onboarding');
+    } else if (currentUser != null) {
+      // Sesión iniciada activa -> Cargar perfil e ir directo a la pantalla principal
+      await DataHolder.instance.descargarPerfil();
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, '/home');
     } else {
+      // Sesión no iniciada -> Ir al login
       Navigator.pushReplacementNamed(context, '/login');
     }
   }
@@ -55,11 +66,7 @@ class _SplashScreenState extends State<SplashScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             // Icono del Splash Screen
-            const Icon(
-              Icons.flutter_dash,
-              size: 100,
-              color: Colors.white,
-            ),
+            const Icon(Icons.flutter_dash, size: 100, color: Colors.white),
             const SizedBox(height: 24),
             const Text(
               'Proyecto App',
@@ -72,16 +79,11 @@ class _SplashScreenState extends State<SplashScreen> {
             const SizedBox(height: 8),
             const Text(
               'Cargando...',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.white70,
-              ),
+              style: TextStyle(fontSize: 16, color: Colors.white70),
             ),
             const SizedBox(height: 48),
             // Indicador de carga animado
-            const CircularProgressIndicator(
-              color: Colors.white,
-            ),
+            const CircularProgressIndicator(color: Colors.white),
           ],
         ),
       ),
