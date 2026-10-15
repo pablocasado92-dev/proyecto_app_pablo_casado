@@ -120,18 +120,25 @@ Cada clase modelo en `lib/fb_objects/` convierte los mapas de Firestore (`Map<St
 
 ---
 
-## ⚡ 4. Chat en Tiempo Real y Programación Reactiva (*Streams*)
+## ⚡ 4. Chat en Tiempo Real y Programación Reactiva (*Streams y Listeners*)
 
 ### ¿Cómo recibe la app los mensajes sin recargar manualmente?
-En `Perfil.descargarMensajes()`, la app abre un canal **`StreamSubscription`** conectado a Firestore:
+En `Perfil.descargarMensajes()`, la app abre un canal **`StreamSubscription`** continuo conectado a Cloud Firestore:
 
 ```dart
 _messagesSubscription = db.collection("Mensajes").limit(100).snapshots().listen((event) {
   // 1. Filtra los mensajes dirigidos o enviados por el usuario
   // 2. Ordena la lista por fecha cronológica
-  // 3. Notifica a los oyentes registrados para redibujar la vista en tiempo real
+  // 3. Notifica a los oyentes mediante la lista unificada de listeners
+  _notifyMessageListeners(mensajes.length);
 });
 ```
+
+### Patrón Observador Unificado (`addListener` y `removeListener`)
+Para gestionar las actualizaciones de interfaz de manera limpia y sin ejecuciones duplicadas:
+- La clase `Perfil` mantiene una única lista viva de suscriptores (`_messageListeners`).
+- Cada pantalla registrada (`HomeView`, `ConversacionesView`, `ChatScreen`) añade su función/lambda callback en `initState()` usando `perfil.addListener(callback)` y la elimina en `dispose()` mediante `perfil.removeListener(callback)` para evitar fugas de memoria.
+- Cada evento de llegada de mensajes notifica **exactamente una sola vez** a las pantallas suscritas activas.
 
 ### Algoritmo de Agrupación por Conversaciones (`getConversaciones()`)
 El método `DataHolder.instance.getConversaciones()` toma la lista plana de mensajes y:
