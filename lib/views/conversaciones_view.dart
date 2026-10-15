@@ -29,13 +29,13 @@ class _ConversacionesViewState extends State<ConversacionesView> {
   @override
   void dispose() {
     final perfil = DataHolder.instance.perfilUsuario;
-    perfil.removeOnMessageReceivedListener(mensajeRecibido);
+    perfil.removeListener(mensajeRecibido);
     super.dispose();
   }
 
   void _inicializarConversaciones() {
     final perfil = DataHolder.instance.perfilUsuario;
-    perfil.addOnMessageReceivedListener(mensajeRecibido);
+    perfil.addListener(mensajeRecibido);
     perfil.descargarMensajes();
     if (mounted) {
       setState(() {
@@ -96,8 +96,6 @@ class _ConversacionesViewState extends State<ConversacionesView> {
                   Navigator.pop(context);
                   Navigator.pushNamed(context, '/chat').then((_) {
                     if (mounted) {
-                      final perfil = DataHolder.instance.perfilUsuario;
-                      perfil.addOnMessageReceivedListener(mensajeRecibido);
                       setState(() {
                         iNumeroConversaciones = DataHolder.instance
                             .getConversaciones()
@@ -197,8 +195,6 @@ class _ConversacionesViewState extends State<ConversacionesView> {
               conversacion.contactoUidOrEmail;
           Navigator.pushNamed(context, '/chat').then((_) {
             if (mounted) {
-              final perfil = DataHolder.instance.perfilUsuario;
-              perfil.addOnMessageReceivedListener(mensajeRecibido);
               setState(() {
                 iNumeroConversaciones = DataHolder.instance
                     .getConversaciones()

@@ -31,7 +31,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void dispose() {
     final perfil = DataHolder.instance.perfilUsuario;
-    perfil.removeOnMessageReceivedListener(_onMessageChat);
+    perfil.removeListener(_onMessageChat);
     _mensajeInputController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -39,7 +39,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _inicializarChat() {
     final perfil = DataHolder.instance.perfilUsuario;
-    perfil.addOnMessageReceivedListener(_onMessageChat);
+    perfil.addListener(_onMessageChat);
     _marcarMensajesDelContactoComoLeidos();
     _scrollToBottom();
   }

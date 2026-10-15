@@ -45,9 +45,6 @@ class Perfil {
   /// Lista de oyentes/observadores de mensajes en tiempo real
   final List<Function(int numeroMensajes)> _messageListeners = [];
 
-  /// CALLBACK: se llama cuando cambian los mensajes en tiempo real.
-  Function(int numeroMensajes)? onMessageReceived;
-
   /// Constructor con parámetros con nombre.
   Perfil({
     required this.uid,
@@ -58,30 +55,28 @@ class Perfil {
     this.fechaRegistro,
   });
 
-  /// Registra la función que se llamará cuando cambien los mensajes.
-  void setOnMessageReceived(Function(int numeroMensajes)? onMessageReceived) {
-    this.onMessageReceived = onMessageReceived;
-    if (onMessageReceived != null) {
-      addOnMessageReceivedListener(onMessageReceived);
-    }
-  }
-
-  /// Añade un oyente de mensajes sin sobrescribir los anteriores
-  void addOnMessageReceivedListener(Function(int numeroMensajes) listener) {
+  /// Añade un oyente de mensajes en tiempo real
+  void addListener(Function(int numeroMensajes) listener) {
     if (!_messageListeners.contains(listener)) {
       _messageListeners.add(listener);
     }
   }
 
-  /// Remueve un oyente específico al cerrar o destruir la pantalla
-  void removeOnMessageReceivedListener(Function(int numeroMensajes) listener) {
+  /// Remueve un oyente específico al cerrar o destruir una pantalla
+  void removeListener(Function(int numeroMensajes) listener) {
     _messageListeners.remove(listener);
   }
 
-  /// Notifica a todos los oyentes activos
+  /// Alias de compatibilidad
+  void addOnMessageReceivedListener(Function(int numeroMensajes) listener) =>
+      addListener(listener);
+
+  void removeOnMessageReceivedListener(Function(int numeroMensajes) listener) =>
+      removeListener(listener);
+
+  /// Notifica a todos los oyentes activos (exactamente una vez por listener)
   void _notifyMessageListeners(int count) {
-    onMessageReceived?.call(count);
-    for (var listener in List.of(_messageListeners)) {
+    for (final listener in List.of(_messageListeners)) {
       listener(count);
     }
   }

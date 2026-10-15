@@ -17,6 +17,12 @@ class HomeView extends StatefulWidget {
 }
 
 class _HomeViewState extends State<HomeView> {
+  void _onMensajeRecibido(int _) {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -24,13 +30,15 @@ class _HomeViewState extends State<HomeView> {
     _inicializarEscuchaMensajes();
   }
 
+  @override
+  void dispose() {
+    DataHolder.instance.perfilUsuario.removeListener(_onMensajeRecibido);
+    super.dispose();
+  }
+
   void _inicializarEscuchaMensajes() {
     final perfil = DataHolder.instance.perfilUsuario;
-    perfil.setOnMessageReceived((_) {
-      if (mounted) {
-        setState(() {});
-      }
-    });
+    perfil.addListener(_onMensajeRecibido);
     perfil.descargarMensajes();
   }
 
