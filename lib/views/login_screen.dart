@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../data/data_holder.dart';
+import '../ins_lib/theme/app_theme.dart';
 
 /// ============================================================================
 /// BLOQUE 3: PANTALLA DE INICIO DE SESIÓN (LoginScreen)
@@ -107,39 +108,48 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Iniciar Sesión'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
             child: Form(
               key: _formKey,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Icono superior descriptivo
-                  const Icon(
-                    Icons.lock_outline,
-                    size: 100,
-                    color: Colors.deepPurple,
+                  // Icono superior descriptivo con contenedor suave
+                  Center(
+                    child: Container(
+                      width: 88,
+                      height: 88,
+                      decoration: const BoxDecoration(
+                        color: AppColores.suave,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.lock_outline_rounded,
+                        size: 44,
+                        color: AppColores.oscuro,
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
                   const Text(
-                    'Hola ke ase?!',
+                    '¡Bienvenido de nuevo!',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: Colors.deepPurple,
+                      color: AppColores.oscuro,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   const Text(
-                    'Inicia sesión para continuar',
+                    'Inicia sesión para continuar en tu cuenta',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                    style: TextStyle(fontSize: 14, color: AppColores.textoSecundario),
                   ),
                   const SizedBox(height: 32),
 
@@ -147,12 +157,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       labelText: 'Correo electrónico',
-                      prefixIcon: const Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      prefixIcon: Icon(Icons.email_outlined),
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -176,17 +183,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscurePassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
                         ),
                         onPressed: () {
                           setState(() {
                             _obscurePassword = !_obscurePassword;
                           });
                         },
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     validator: (value) {
@@ -204,14 +208,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   // Botón Principal de Iniciar Sesión
                   ElevatedButton(
                     onPressed: _isLoading ? null : _handleLogin,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
                     child: _isLoading
                         ? const SizedBox(
                             height: 20,
@@ -221,13 +217,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               strokeWidth: 2,
                             ),
                           )
-                        : const Text(
-                            'Iniciar Sesión',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                        : const Text('Iniciar Sesión'),
                   ),
                   const SizedBox(height: 16),
 
@@ -235,12 +225,19 @@ class _LoginScreenState extends State<LoginScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text('¿No tienes una cuenta?'),
+                      const Text(
+                        '¿No tienes una cuenta? ',
+                        style: TextStyle(color: AppColores.textoSecundario),
+                      ),
                       TextButton(
                         onPressed: () {
                           // Navegación estandarizada por ruta nombrada
                           Navigator.pushNamed(context, '/register');
                         },
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColores.oscuro,
+                          textStyle: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
                         child: const Text('Regístrate'),
                       ),
                     ],

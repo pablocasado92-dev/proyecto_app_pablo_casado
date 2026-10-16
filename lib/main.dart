@@ -4,6 +4,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import 'firebase_options.dart'; // Opciones de configuración generadas por FlutterFire CLI
+import 'ins_lib/theme/app_theme.dart';
 import 'views/chat_screen.dart';
 import 'views/conversaciones_view.dart';
 import 'views/edit_profile_view.dart';
@@ -46,10 +47,7 @@ class MyApp extends StatelessWidget {
       title: 'Proyecto App Pablo Casado',
       debugShowCheckedModeBanner: false,
       scrollBehavior: MyCustomScrollBehavior(),
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.tema,
 
       // La app arranca en la SplashScreen que evalúa la navegación inicial
       initialRoute: '/',

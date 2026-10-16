@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../data/data_holder.dart';
+import '../ins_lib/theme/app_theme.dart';
 
 /// ============================================================================
 /// PANTALLA DE REGISTRO DE USUARIOS (RegisterScreen)
@@ -138,50 +139,56 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Crear Cuenta'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
             child: Form(
               key: _formKey,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(
-                    Icons.person_add_alt_1_rounded,
-                    size: 80,
-                    color: Colors.deepPurple,
+                  Center(
+                    child: Container(
+                      width: 88,
+                      height: 88,
+                      decoration: const BoxDecoration(
+                        color: AppColores.suave,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.person_add_alt_1_rounded,
+                        size: 44,
+                        color: AppColores.oscuro,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 24),
                   const Text(
-                    'Crea una nueva cuenta',
+                    'Crea tu cuenta',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: Colors.deepPurple,
+                      color: AppColores.oscuro,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   const Text(
-                    'Completa los datos para comenzar',
+                    'Completa tus datos para comenzar',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                    style: TextStyle(fontSize: 14, color: AppColores.textoSecundario),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 28),
 
                   // Campo de Texto: Nombre Completo
                   TextFormField(
                     controller: _nameController,
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       labelText: 'Nombre completo',
-                      prefixIcon: const Icon(Icons.person_outline),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      prefixIcon: Icon(Icons.person_outline),
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -195,12 +202,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   // Menú Desplegable: Selección de Edad (1 a 100 años)
                   DropdownButtonFormField<int>(
                     initialValue: _selectedEdad,
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       labelText: 'Edad',
-                      prefixIcon: const Icon(Icons.cake_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      prefixIcon: Icon(Icons.cake_outlined),
                     ),
                     items: List.generate(100, (index) {
                       final edad = index + 1;
@@ -227,12 +231,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       labelText: 'Correo electrónico',
-                      prefixIcon: const Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      prefixIcon: Icon(Icons.email_outlined),
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -256,17 +257,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscurePassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
                         ),
                         onPressed: () {
                           setState(() {
                             _obscurePassword = !_obscurePassword;
                           });
                         },
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     validator: (value) {
@@ -291,17 +289,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscureConfirmPassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
                         ),
                         onPressed: () {
                           setState(() {
                             _obscureConfirmPassword = !_obscureConfirmPassword;
                           });
                         },
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     validator: (value) {
@@ -319,14 +314,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   // Botón Principal de Registro
                   ElevatedButton(
                     onPressed: _isLoading ? null : _handleRegister,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
                     child: _isLoading
                         ? const SizedBox(
                             height: 20,
@@ -336,13 +323,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               strokeWidth: 2,
                             ),
                           )
-                        : const Text(
-                            'Registrarse',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                        : const Text('Registrarse'),
                   ),
                 ],
               ),

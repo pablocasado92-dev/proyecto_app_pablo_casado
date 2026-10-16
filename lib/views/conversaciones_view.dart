@@ -261,7 +261,6 @@ class _ConversacionesViewState extends State<ConversacionesView> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Conversaciones"),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: SafeArea(child: _buildListaConversaciones()),
       bottomNavigationBar: InsBotBarStyle1(

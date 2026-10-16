@@ -111,7 +111,6 @@ class _EditProfileViewState extends State<EditProfileView> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mi Perfil'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: SafeArea(
         child: SingleChildScrollView(

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../ins_lib/theme/app_theme.dart';
+
 /// ============================================================================
 /// BLOQUE 2: PANTALLA DE INTRODUCCIÓN / ONBOARDING (OnboardingScreen)
 /// ============================================================================
@@ -25,21 +27,24 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final List<OnboardingItem> _items = [
     OnboardingItem(
       title: 'Bienvenido a la App',
-      description: 'De momento hay poco pero irá viniendo',
-      icon: Icons.explore,
-      color: Colors.deepPurple,
+      description:
+          'Tu espacio para conectar, comunicarte y gestionar tu perfil.',
+      icon: Icons.chat_bubble_outline_rounded,
+      color: AppColores.oscuro,
     ),
     OnboardingItem(
-      title: 'Conectado a internet',
-      description: 'Chatea con tus amigos de forma sencilla',
-      icon: Icons.cloud_sync,
-      color: Colors.indigo,
+      title: 'Mensajería en Tiempo Real',
+      description:
+          'Chatea al instante con tus contactos de forma rápida y segura.',
+      icon: Icons.cloud_sync_outlined,
+      color: AppColores.principal,
     ),
     OnboardingItem(
-      title: 'Empieza a Disfrutar',
-      description: 'Ya casi está, solo queda un paso',
-      icon: Icons.rocket_launch,
-      color: Colors.deepOrange,
+      title: 'Personaliza tu Perfil',
+      description:
+          'Configura tu nombre, edad y foto de avatar con total libertad.',
+      icon: Icons.person_pin_circle_outlined,
+      color: AppColores.oscuro,
     ),
   ];
 
@@ -240,7 +245,7 @@ class OnboardingItem {
   final IconData icon;
   final Color color;
 
-  OnboardingItem({
+  const OnboardingItem({
     required this.title,
     required this.description,
     required this.icon,

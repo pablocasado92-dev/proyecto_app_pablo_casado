@@ -266,7 +266,7 @@ class _ChatScreenState extends State<ChatScreen> {
             IconButton.filled(
               onPressed: _isSending ? null : _enviarMensaje,
               style: IconButton.styleFrom(
-                backgroundColor: AppColores.principal,
+                backgroundColor: AppColores.oscuro,
                 padding: const EdgeInsets.all(12),
               ),
               icon: _isSending
@@ -311,7 +311,6 @@ class _ChatScreenState extends State<ChatScreen> {
             return Text(snapshot.data ?? (contacto ?? "Chat"));
           },
         ),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: Column(
         children: [

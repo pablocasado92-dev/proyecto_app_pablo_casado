@@ -139,3 +139,150 @@ class AppTextos {
     fontWeight: FontWeight.w600,
   );
 }
+
+/// =====================================================================
+/// Configuración unificada de ThemeData moderno para toda la aplicación
+/// =====================================================================
+class AppTheme {
+  static ThemeData get tema {
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: AppColores.oscuro,
+      primary: AppColores.oscuro,
+      secondary: AppColores.principal,
+      surface: AppColores.tarjeta,
+    );
+
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: colorScheme,
+      scaffoldBackgroundColor: AppColores.fondo,
+
+      // Barra superior moderna y limpia
+      appBarTheme: const AppBarTheme(
+        backgroundColor: AppColores.fondo,
+        foregroundColor: AppColores.oscuro,
+        elevation: 0,
+        scrolledUnderElevation: 1,
+        centerTitle: true,
+        iconTheme: IconThemeData(color: AppColores.oscuro),
+        titleTextStyle: TextStyle(
+          color: AppColores.oscuro,
+          fontSize: 19,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.2,
+        ),
+      ),
+
+      // Tarjetas con bordes redondeados y sombra sutil
+      cardTheme: CardThemeData(
+        color: AppColores.tarjeta,
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadios.tarjeta),
+          side: const BorderSide(color: AppColores.divisor, width: 1),
+        ),
+      ),
+
+      // Campos de texto modernos tipo cápsula rellena
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadios.campo),
+          borderSide: const BorderSide(color: AppColores.divisor),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadios.campo),
+          borderSide: const BorderSide(color: AppColores.divisor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadios.campo),
+          borderSide: const BorderSide(color: AppColores.oscuro, width: 1.8),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadios.campo),
+          borderSide: const BorderSide(color: AppColores.error),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadios.campo),
+          borderSide: const BorderSide(color: AppColores.error, width: 1.8),
+        ),
+        labelStyle: const TextStyle(color: AppColores.textoSecundario),
+        prefixIconColor: AppColores.oscuro,
+      ),
+
+      // Botones elevados con altura confortable y esquinas redondeadas
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColores.oscuro,
+          foregroundColor: Colors.white,
+          minimumSize: const Size.fromHeight(AppEspacios.alturaBoton),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadios.campo),
+          ),
+          textStyle: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.3,
+          ),
+        ),
+      ),
+
+      // Botón flotante estilizado
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: AppColores.oscuro,
+        foregroundColor: Colors.white,
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(16)),
+        ),
+      ),
+
+      // Barra de navegación inferior
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: Colors.white,
+        elevation: 1,
+        indicatorColor: AppColores.suave,
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: AppColores.oscuro,
+            );
+          }
+          return const TextStyle(
+            fontSize: 12,
+            color: AppColores.textoSecundario,
+          );
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const IconThemeData(color: AppColores.oscuro);
+          }
+          return const IconThemeData(color: AppColores.textoSecundario);
+        }),
+      ),
+
+      // Diálogos redondeados
+      dialogTheme: DialogThemeData(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadios.tarjeta),
+        ),
+      ),
+
+      // Snackbars flotantes y suaves
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+  }
+}
