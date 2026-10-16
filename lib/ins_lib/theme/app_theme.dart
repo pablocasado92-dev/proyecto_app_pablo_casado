@@ -7,28 +7,28 @@ import 'package:flutter/material.dart';
 // dimensiones y estilos de texto de la aplicación.
 // =====================================================================
 
-/// Paleta de colores de la aplicación
+/// Paleta de colores de la aplicación (Tonos Rojos / Granate / Borgoña)
 class AppColores {
-  /// Verde de marca principal
-  static const Color principal = Color.fromARGB(255, 146, 183, 123);
+  /// Granate vibrante de marca principal
+  static const Color principal = Color.fromARGB(255, 168, 44, 62);
 
-  /// Verde oscuro para iconos y textos destacados
-  static const Color oscuro = Color.fromARGB(255, 70, 110, 60);
+  /// Granate borgoña oscuro para iconos y textos destacados
+  static const Color oscuro = Color.fromARGB(255, 107, 18, 33);
 
-  /// Verde suave para fondos de etiquetas e iconos
-  static const Color suave = Color.fromARGB(255, 226, 238, 218);
+  /// Granate muy suave / crema rosado para fondos de etiquetas e iconos
+  static const Color suave = Color.fromARGB(255, 247, 235, 239);
 
-  /// Fondo general de las pantallas
-  static const Color fondo = Color.fromARGB(255, 243, 246, 240);
+  /// Fondo general cálido muy suave de las pantallas
+  static const Color fondo = Color.fromARGB(255, 250, 245, 246);
 
   /// Fondo de tarjetas
   static const Color tarjeta = Colors.white;
 
-  /// Texto principal
-  static const Color texto = Color.fromARGB(255, 33, 37, 31);
+  /// Texto principal en grafito vino
+  static const Color texto = Color.fromARGB(255, 43, 26, 29);
 
-  /// Texto secundario
-  static const Color textoSecundario = Color.fromARGB(255, 104, 112, 100);
+  /// Texto secundario en vino apagado
+  static const Color textoSecundario = Color.fromARGB(255, 122, 104, 107);
 
   /// Texto sobre fondo principal
   static const Color sobrePrincipal = Colors.white;
@@ -39,14 +39,14 @@ class AppColores {
   /// Pastillas translúcidas sobre cabeceras
   static const Color pastilla = Color.fromARGB(56, 255, 255, 255);
 
-  /// Líneas divisorias
-  static const Color divisor = Color.fromARGB(255, 228, 233, 224);
+  /// Líneas divisorias en rosa/crema suave
+  static const Color divisor = Color.fromARGB(255, 238, 223, 226);
 
   /// Borde de pastillas
   static const Color pastillaBorde = Color.fromARGB(110, 255, 255, 255);
 
   /// Borde de campos deshabilitados
-  static const Color bordeCampo = Color.fromARGB(255, 205, 214, 199);
+  static const Color bordeCampo = Color.fromARGB(255, 216, 192, 196);
 
   /// Color de errores
   static const Color error = Color.fromARGB(255, 186, 26, 26);
