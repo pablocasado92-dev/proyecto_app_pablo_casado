@@ -61,8 +61,12 @@ class _LoginScreenState extends State<LoginScreen> {
           _isLoading = false;
         });
 
-        // 4. Navegar a la pantalla principal (HomeView) reemplazando la ruta actual
-        Navigator.pushReplacementNamed(context, '/home');
+        // 4. Evaluar primerLogin: si es true, mostrar Onboarding antes de ir a Home
+        if (DataHolder.instance.perfilUsuario.primerLogin) {
+          Navigator.pushReplacementNamed(context, '/onboarding');
+        } else {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
       } on FirebaseAuthException catch (e) {
         // Manejo de errores específicos de Firebase Authentication
         setState(() {
@@ -106,13 +110,14 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Iniciar Sesión'),
-      ),
+      appBar: AppBar(title: const Text('Iniciar Sesión')),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 16.0,
+            ),
             child: Form(
               key: _formKey,
               child: Column(
@@ -149,7 +154,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   const Text(
                     'Inicia sesión para continuar en tu cuenta',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14, color: AppColores.textoSecundario),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColores.textoSecundario,
+                    ),
                   ),
                   const SizedBox(height: 32),
 
@@ -236,7 +244,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         },
                         style: TextButton.styleFrom(
                           foregroundColor: AppColores.oscuro,
-                          textStyle: const TextStyle(fontWeight: FontWeight.bold),
+                          textStyle: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         child: const Text('Regístrate'),
                       ),

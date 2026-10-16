@@ -28,6 +28,8 @@ class _ChatScreenState extends State<ChatScreen> {
     _inicializarChat();
   }
 
+  /// BLOQUE 4: Al destruir la pantalla de chat, se elimina el listener de mensajes
+  /// y se liberan los controladores de texto y desplazamiento en memoria.
   @override
   void dispose() {
     final perfil = DataHolder.instance.perfilUsuario;
@@ -292,6 +294,14 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Recibir el contacto pasado por parámetro en Navigator.pushNamed(..., arguments: contacto)
+    // o usar el contacto almacenado en el Singleton DataHolder como respaldo
+    final String? argContacto =
+        ModalRoute.of(context)?.settings.arguments as String?;
+    if (argContacto != null && argContacto.isNotEmpty) {
+      DataHolder.instance.contactoChatSeleccionado = argContacto;
+    }
+
     final String? contacto = DataHolder.instance.contactoChatSeleccionado;
     final perfil = DataHolder.instance.perfilUsuario;
     final myUid = perfil.uid.toLowerCase();

@@ -1,14 +1,15 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/data_holder.dart';
 import '../ins_lib/theme/app_theme.dart';
 
 /// ============================================================================
 /// BLOQUE 2: PANTALLA DE INTRODUCCIÓN / ONBOARDING (OnboardingScreen)
 /// ============================================================================
-/// Esta vista muestra 3 tarjetas deslizables de bienvenida la primera vez que
-/// se abre la aplicación. Guarda una marca en SharedPreferences al finalizar
-/// o al pulsar "Saltar", asegurando que no vuelva a aparecer en inicios posteriores.
+/// Esta vista muestra 3 tarjetas deslizables de bienvenida en el primer inicio
+/// de sesión del usuario. Actualiza el campo primerLogin a false en Firestore
+/// al finalizar o pulsar "Saltar" y navega directamente a Home.
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -37,7 +38,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       description:
           'Chatea al instante con tus contactos de forma rápida y segura.',
       icon: Icons.cloud_sync_outlined,
-      color: AppColores.principal,
+      color: AppColores.oscuro,
     ),
     OnboardingItem(
       title: 'Personaliza tu Perfil',
@@ -48,16 +49,27 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     ),
   ];
 
-  /// Marca el onboarding como visto en SharedPreferences y navega al Login
+  /// Marca primerLogin como false en Firestore y DataHolder, y navega a Home
   Future<void> _completeOnboarding() async {
-    // 1. Guardar de forma persistente que el usuario ya vio el onboarding
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('has_seen_onboarding', true);
+    final perfil = DataHolder.instance.perfilUsuario;
+    perfil.primerLogin = false;
+
+    // Actualizar el valor en Firestore para que no vuelva a aparecer en logins posteriores
+    if (perfil.uid.isNotEmpty) {
+      try {
+        await FirebaseFirestore.instance
+            .collection("Perfiles")
+            .doc(perfil.uid)
+            .update({'primerLogin': false});
+      } catch (e) {
+        debugPrint("Error actualizando primerLogin en Firestore: $e");
+      }
+    }
 
     if (!mounted) return;
 
-    // 2. Navegar a la pantalla de Login mediante ruta nombrada
-    Navigator.pushReplacementNamed(context, '/login');
+    // Navegar directamente a la pantalla principal Home
+    Navigator.pushReplacementNamed(context, '/home');
   }
 
   @override
@@ -208,8 +220,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _items[_currentPage].color,
                           foregroundColor: Colors.white,
+                          minimumSize: const Size(120, 48),
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 32,
+                            horizontal: 24,
                             vertical: 12,
                           ),
                           shape: RoundedRectangleBorder(

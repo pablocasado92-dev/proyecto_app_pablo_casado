@@ -26,6 +26,8 @@ class _ConversacionesViewState extends State<ConversacionesView> {
     _inicializarConversaciones();
   }
 
+  /// BLOQUE 4: Al destruirse la pantalla se cancela la suscripción/listener de mensajes
+  /// para evitar fugas de memoria y llamadas a setState() sobre un widget desmontado.
   @override
   void dispose() {
     final perfil = DataHolder.instance.perfilUsuario;
@@ -94,7 +96,12 @@ class _ConversacionesViewState extends State<ConversacionesView> {
                       .toLowerCase();
                   DataHolder.instance.contactoChatSeleccionado = emailContacto;
                   Navigator.pop(context);
-                  Navigator.pushNamed(context, '/chat').then((_) {
+                  // Navegación por ruta nombrada pasando el contacto como parámetro (arguments)
+                  Navigator.pushNamed(
+                    context,
+                    '/chat',
+                    arguments: emailContacto,
+                  ).then((_) {
                     if (mounted) {
                       setState(() {
                         iNumeroConversaciones = DataHolder.instance
@@ -193,7 +200,12 @@ class _ConversacionesViewState extends State<ConversacionesView> {
         onTap: () {
           DataHolder.instance.contactoChatSeleccionado =
               conversacion.contactoUidOrEmail;
-          Navigator.pushNamed(context, '/chat').then((_) {
+          // Navegación mediante ruta nombrada declarada en MaterialApp con paso de parámetros (arguments)
+          Navigator.pushNamed(
+            context,
+            '/chat',
+            arguments: conversacion.contactoUidOrEmail,
+          ).then((_) {
             if (mounted) {
               setState(() {
                 iNumeroConversaciones = DataHolder.instance
@@ -207,9 +219,61 @@ class _ConversacionesViewState extends State<ConversacionesView> {
     );
   }
 
+  /// Construye la vista en LISTA alimentada desde Firestore gestionando sus 3 estados:
+  /// Carga, Error y Vacío (además de la lista con datos).
   Widget _buildListaConversaciones() {
+    final perfil = DataHolder.instance.perfilUsuario;
     final lista = DataHolder.instance.getConversaciones();
 
+    // 1. ESTADO DE CARGA (mientras conecta con Firestore y aún no hay datos en caché)
+    if (perfil.cargandoMensajes && lista.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: AppColores.oscuro),
+            SizedBox(height: 12),
+            Text(
+              'Cargando conversaciones desde Firestore...',
+              style: TextStyle(color: AppColores.textoSecundario),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // 2. ESTADO DE ERROR (si falla la lectura en Firestore)
+    if (perfil.errorMensajes != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppEspacios.xl),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.error_outline_rounded,
+                size: 64,
+                color: AppColores.error,
+              ),
+              const SizedBox(height: AppEspacios.md),
+              Text(
+                perfil.errorMensajes!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColores.texto),
+              ),
+              const SizedBox(height: AppEspacios.md),
+              ElevatedButton.icon(
+                onPressed: _inicializarConversaciones,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Reintentar'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // 3. ESTADO VACÍO (cuando no existen conversaciones en Firestore)
     if (lista.isEmpty) {
       return Center(
         child: Padding(
@@ -247,6 +311,7 @@ class _ConversacionesViewState extends State<ConversacionesView> {
       );
     }
 
+    // 4. ESTADO CON DATOS (ListView.builder)
     return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: AppEspacios.md),
       itemCount: lista.length,
@@ -259,9 +324,7 @@ class _ConversacionesViewState extends State<ConversacionesView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Conversaciones"),
-      ),
+      appBar: AppBar(title: const Text("Conversaciones")),
       body: SafeArea(child: _buildListaConversaciones()),
       bottomNavigationBar: InsBotBarStyle1(
         blBadge1: DataHolder.instance.blNotificacionesBadge,

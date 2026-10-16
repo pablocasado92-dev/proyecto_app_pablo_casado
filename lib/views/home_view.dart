@@ -31,6 +31,8 @@ class _HomeViewState extends State<HomeView> {
     _inicializarEscuchaMensajes();
   }
 
+  /// BLOQUE 4: Al destruirse la pantalla principal se cancela su listener de mensajes
+  /// para evitar fugas de memoria y actualizaciones sobre un widget ya destruido.
   @override
   void dispose() {
     DataHolder.instance.perfilUsuario.removeListener(_onMensajeRecibido);
@@ -43,10 +45,11 @@ class _HomeViewState extends State<HomeView> {
     perfil.descargarMensajes();
   }
 
-  /// Realiza el cierre de sesión del usuario
+  /// BLOQUE 4: Cierra la sesión en Firebase Auth y limpia todo lo que quede abierto
+  /// (cancela el StreamSubscription de Firestore mediante clearData() -> perfil.dispose()).
   Future<void> _signOut(BuildContext context) async {
+    DataHolder.instance.clearData(); // Cancela las suscripciones activas y limpia memoria
     await FirebaseAuth.instance.signOut();
-    DataHolder.instance.clearData();
 
     if (!context.mounted) return;
     Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);

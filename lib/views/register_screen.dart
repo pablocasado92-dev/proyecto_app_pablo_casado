@@ -68,18 +68,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
 
         // 4. Crear el documento de perfil en la colección "Perfiles" de Firestore
+        // utilizando conversión tipada (.withConverter<Perfil>) e indicando primerLogin = true
         final nuevoPerfil = Perfil(
           uid: uid,
           name: _nameController.text.trim(),
           edad: _selectedEdad,
           email: _emailController.text.trim(),
           fechaRegistro: Timestamp.now(),
+          primerLogin: true,
         );
 
         await FirebaseFirestore.instance
             .collection("Perfiles")
             .doc(uid)
-            .set(nuevoPerfil.toFirestore());
+            .withConverter<Perfil>(
+              fromFirestore: Perfil.fromFirestore,
+              toFirestore: (Perfil p, _) => p.toFirestore(),
+            )
+            .set(nuevoPerfil);
 
         // 5. Asignar el perfil en el DataHolder global y activar escuchas
         DataHolder.instance.perfilUsuario = nuevoPerfil;
@@ -91,12 +97,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
           _isLoading = false;
         });
 
-        // 6. Notificar éxito y navegar a la pantalla principal (HomeView)
+        // 6. Notificar éxito y navegar al Onboarding justo antes de ir a Home
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('¡Registro exitoso en Firebase!')),
         );
 
-        Navigator.pushReplacementNamed(context, '/home');
+        Navigator.pushReplacementNamed(context, '/onboarding');
       } on FirebaseAuthException catch (e) {
         // Captura de errores específicos devueltos por el servidor de Firebase Auth
         setState(() {
@@ -137,13 +143,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Crear Cuenta'),
-      ),
+      appBar: AppBar(title: const Text('Crear Cuenta')),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 16.0,
+            ),
             child: Form(
               key: _formKey,
               child: Column(
@@ -179,7 +186,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const Text(
                     'Completa tus datos para comenzar',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14, color: AppColores.textoSecundario),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColores.textoSecundario,
+                    ),
                   ),
                   const SizedBox(height: 28),
 

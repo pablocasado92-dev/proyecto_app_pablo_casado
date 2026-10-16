@@ -188,7 +188,10 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadios.campo),
           borderSide: const BorderSide(color: AppColores.divisor),
@@ -218,7 +221,7 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColores.oscuro,
           foregroundColor: Colors.white,
-          minimumSize: const Size.fromHeight(AppEspacios.alturaBoton),
+          minimumSize: const Size(88, AppEspacios.alturaBoton),
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadios.campo),
@@ -279,9 +282,7 @@ class AppTheme {
       // Snackbars flotantes y suaves
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }

@@ -35,14 +35,23 @@ class Perfil {
   /// Fecha y hora de creación de la cuenta/perfil.
   Timestamp? fechaRegistro;
 
+  /// Indicar si es el primer inicio de sesión del usuario (para mostrar el Onboarding)
+  bool primerLogin = true;
+
   /// Mensajes pertenecientes a la conversación del usuario.
   List<Mensaje> mensajes = <Mensaje>[];
 
-  /// Suscripción al Stream de Firestore para evitar listeners duplicados
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
-  _messagesSubscription;
+  /// Estado de carga de la suscripción de mensajes en Firestore.
+  bool cargandoMensajes = false;
 
-  /// Lista de oyentes/observadores de mensajes en tiempo real
+  /// Mensaje de error en caso de fallo al conectar con Firestore (null si no hay error).
+  String? errorMensajes;
+
+  /// BLOQUE 4: Suscripción activa al Stream de Firestore (tipada con Mensaje)
+  /// Se guarda en una variable para poder cancelarla al cerrar sesión o destruir el perfil.
+  StreamSubscription<QuerySnapshot<Mensaje>>? _messagesSubscription;
+
+  /// Lista de oyentes/observadores de mensajes en tiempo real (Patrón Observer).
   final List<Function(int numeroMensajes)> _messageListeners = [];
 
   /// Constructor con parámetros con nombre.
@@ -53,16 +62,17 @@ class Perfil {
     this.email,
     this.urlAvatar,
     this.fechaRegistro,
+    this.primerLogin = true,
   });
 
-  /// Añade un oyente de mensajes en tiempo real
+  /// Registra una función callback (listener) cuando una pantalla entra en escena (initState).
   void addListener(Function(int numeroMensajes) listener) {
     if (!_messageListeners.contains(listener)) {
       _messageListeners.add(listener);
     }
   }
 
-  /// Remueve un oyente específico al cerrar o destruir una pantalla
+  /// BLOQUE 4: Elimina el listener de una pantalla cuando esta se destruye (dispose).
   void removeListener(Function(int numeroMensajes) listener) {
     _messageListeners.remove(listener);
   }
@@ -74,14 +84,15 @@ class Perfil {
   void removeOnMessageReceivedListener(Function(int numeroMensajes) listener) =>
       removeListener(listener);
 
-  /// Notifica a todos los oyentes activos (exactamente una vez por listener)
+  /// Notifica a todas las pantallas suscritas activas cuando cambian los mensajes.
   void _notifyMessageListeners(int count) {
     for (final listener in List.of(_messageListeners)) {
       listener(count);
     }
   }
 
-  /// Constructor "factory" para LEER de Firestore.
+  /// Conversor tipado (fromFirestore): transforma el DocumentSnapshot de Firestore
+  /// en un objeto fuertemente tipado de la clase [Perfil].
   factory Perfil.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> snapshot,
     SnapshotOptions? options,
@@ -94,10 +105,11 @@ class Perfil {
       email: data?['email'] as String?,
       urlAvatar: data?['urlAvatar'] as String?,
       fechaRegistro: data?['fechaRegistro'] as Timestamp?,
+      primerLogin: (data?['primerLogin'] as bool?) ?? true,
     );
   }
 
-  /// Conversión contraria: Perfil -> Map para guardarlo en Firestore con set().
+  /// Conversor tipado (toFirestore): convierte la instancia [Perfil] a un Map para Firestore.
   Map<String, dynamic> toFirestore() {
     return {
       if (name != null) "name": name,
@@ -105,11 +117,12 @@ class Perfil {
       if (email != null) "email": email,
       "urlAvatar": urlAvatar,
       if (fechaRegistro != null) "fechaRegistro": fechaRegistro,
+      "primerLogin": primerLogin,
     };
   }
 
-  /// Empieza a escuchar EN TIEMPO REAL los MENSAJES de la conversación del usuario desde Firestore.
-  /// Cancela la suscripción anterior para evitar duplicaciones por múltiples escuchas.
+  /// Escucha EN TIEMPO REAL la colección "Mensajes" de Firestore utilizando `.withConverter<Mensaje>`.
+  /// Cancela cualquier suscripción previa para evitar fugas de memoria o escuchas duplicadas.
   Future<void> descargarMensajes() async {
     await _messagesSubscription?.cancel();
 
@@ -123,55 +136,78 @@ class Perfil {
 
     if (myUidClean.isEmpty && userEmailClean.isEmpty) return;
 
-    // Escuchar la colección principal "Mensajes" en tiempo real
-    final queryMensajes = db.collection("Mensajes").limit(100);
+    cargandoMensajes = true;
+    errorMensajes = null;
+    _notifyMessageListeners(mensajes.length);
 
-    _messagesSubscription = queryMensajes.snapshots().listen((event) {
-      mensajes.clear();
-      for (var docSnapshot in event.docs) {
-        Map<String, dynamic> fila = docSnapshot.data();
-        final String dest = (fila["destinatarioUID"] as String? ?? "")
-            .trim()
-            .toLowerCase();
-        final String rem = (fila["remitenteUID"] as String? ?? "")
-            .trim()
-            .toLowerCase();
+    // Consulta tipada con .withConverter<Mensaje> para recibir objetos Mensaje directamente
+    final queryMensajes = db
+        .collection("Mensajes")
+        .withConverter<Mensaje>(
+          fromFirestore: Mensaje.fromFirestore,
+          toFirestore: (Mensaje m, _) => m.toFirestore(),
+        )
+        .limit(100);
 
-        // Filtrar mensajes enviados O recibidos por este usuario para construir la conversación del chat
-        final bool esParaMi =
-            (myUidClean.isNotEmpty && dest == myUidClean) ||
-            (userEmailClean.isNotEmpty && dest == userEmailClean) ||
-            (authEmailClean.isNotEmpty && dest == authEmailClean);
+    _messagesSubscription = queryMensajes.snapshots().listen(
+      (event) {
+        cargandoMensajes = false;
+        errorMensajes = null;
+        mensajes.clear();
 
-        final bool esDeMi =
-            (myUidClean.isNotEmpty && rem == myUidClean) ||
-            (userEmailClean.isNotEmpty && rem == userEmailClean) ||
-            (authEmailClean.isNotEmpty && rem == authEmailClean);
+        for (var docSnapshot in event.docs) {
+          final Mensaje msg = docSnapshot.data();
+          final String dest = (msg.destinatarioUID ?? "").trim().toLowerCase();
+          final String rem = (msg.remitenteUID ?? "").trim().toLowerCase();
 
-        if (esParaMi || esDeMi) {
-          mensajes.add(Mensaje(docSnapshot.id, fila));
+          // Filtrar mensajes enviados O recibidos por el usuario actual
+          final bool esParaMi =
+              (myUidClean.isNotEmpty && dest == myUidClean) ||
+              (userEmailClean.isNotEmpty && dest == userEmailClean) ||
+              (authEmailClean.isNotEmpty && dest == authEmailClean);
+
+          final bool esDeMi =
+              (myUidClean.isNotEmpty && rem == myUidClean) ||
+              (userEmailClean.isNotEmpty && rem == userEmailClean) ||
+              (authEmailClean.isNotEmpty && rem == authEmailClean);
+
+          if (esParaMi || esDeMi) {
+            mensajes.add(msg);
+          }
         }
-      }
 
-      // Ordenar cronológicamente por fecha para el flujo de conversación del chat
-      mensajes.sort((a, b) {
-        final aFecha =
-            a.fecha?.toDate() ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bFecha =
-            b.fecha?.toDate() ?? DateTime.fromMillisecondsSinceEpoch(0);
-        return aFecha.compareTo(bFecha);
-      });
+        // Ordenar cronológicamente por fecha
+        mensajes.sort((a, b) {
+          final aFecha =
+              a.fecha?.toDate() ?? DateTime.fromMillisecondsSinceEpoch(0);
+          final bFecha =
+              b.fecha?.toDate() ?? DateTime.fromMillisecondsSinceEpoch(0);
+          return aFecha.compareTo(bFecha);
+        });
 
-      _notifyMessageListeners(mensajes.length);
-    }, onError: (error) => debugPrint("Error escuchando mensajes: $error"));
+        _notifyMessageListeners(mensajes.length);
+      },
+      onError: (error) {
+        cargandoMensajes = false;
+        errorMensajes = "Error al cargar los mensajes: $error";
+        debugPrint("Error escuchando mensajes: $error");
+        _notifyMessageListeners(mensajes.length);
+      },
+    );
   }
 
-  /// Añade un mensaje nuevo a Firestore.
+  /// Añade un mensaje nuevo a Firestore utilizando el conversor tipado (`.withConverter<Mensaje>`).
   void agregarNuevoMensaje(Mensaje m) async {
-    await db.collection("Mensajes").add(m.toFirestore());
+    await db
+        .collection("Mensajes")
+        .withConverter<Mensaje>(
+          fromFirestore: Mensaje.fromFirestore,
+          toFirestore: (Mensaje msg, _) => msg.toFirestore(),
+        )
+        .add(m);
   }
 
-  /// Marca como leídos los mensajes que no lo estaban y guarda cada cambio en Firestore.
+  /// Marca como leídos los mensajes pendientes y guarda cada cambio en Firestore.
   void marcarMensajesLeidos() async {
     for (Mensaje m in mensajes) {
       if (!m.leido) {
@@ -181,9 +217,11 @@ class Perfil {
     }
   }
 
-  /// Libera la suscripción al cerrar sesión o destruir el perfil
+  /// BLOQUE 4: Cancela la suscripción activa de Firestore y limpia los listeners
+  /// cuando el usuario cierra sesión o se destruye el perfil.
   void dispose() {
     _messagesSubscription?.cancel();
+    _messagesSubscription = null;
     _messageListeners.clear();
   }
 }

@@ -266,8 +266,10 @@ class DataHolder {
     return perfilUsuario;
   }
 
-  /// Limpia los datos de sesión almacenados
+  /// BLOQUE 4: Limpia los datos de sesión almacenados y cancela las suscripciones
+  /// activas a Firestore cuando el usuario cierra sesión.
   void clearData() {
+    _perfilUsuario?.dispose(); // Cancela el StreamSubscription de mensajes
     userEmail = '';
     userName = '';
     _perfilUsuario = null;
