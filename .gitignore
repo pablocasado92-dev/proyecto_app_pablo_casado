@@ -59,4 +59,10 @@ ios/Runner/GoogleService-Info.plist
 .agents/
 .claude/
 skills-lock.json
+AGENTS.md
+GEMINI.md
+docs/
+scripts/
+specs/
+
 
