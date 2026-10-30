@@ -68,9 +68,9 @@ class _InsBotBarStyle1State extends State<InsBotBarStyle1> {
           label: 'Principal',
         ),
         const NavigationDestination(
-          selectedIcon: Icon(Icons.person_rounded),
-          icon: Icon(Icons.person_outline_rounded),
-          label: 'Perfil',
+          selectedIcon: Icon(Icons.people_rounded),
+          icon: Icon(Icons.people_outline_rounded),
+          label: 'Perfiles',
         ),
         NavigationDestination(
           selectedIcon: Badge(

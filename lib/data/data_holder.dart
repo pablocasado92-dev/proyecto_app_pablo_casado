@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -266,9 +268,55 @@ class DataHolder {
     return perfilUsuario;
   }
 
+  // ==========================================================================
+  // GESTIÓN DE PRESENCIA Y ESTADO DE CONEXIÓN (Heartbeat / TTL)
+  // ==========================================================================
+  Timer? _heartbeatTimer;
+
+  /// Actualiza en Firestore la bandera 'conectado' y el timestamp 'ultimaConexion'.
+  Future<void> actualizarEstadoConexion(bool online) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null && uid.isNotEmpty) {
+      try {
+        await db.collection("Perfiles").doc(uid).set({
+          "conectado": online,
+          "ultimaConexion": FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      } catch (e) {
+        debugPrint("Error actualizando estado de conexión: $e");
+      }
+    }
+  }
+
+  /// Inicia el ciclo periódico de latido (heartbeat).
+  /// Se ejecuta cada 2 minutos actualizando 'ultimaConexion' en Firestore
+  /// mientras el usuario mantenga la aplicación abierta.
+  void iniciarPresencia() {
+    _heartbeatTimer?.cancel();
+    actualizarEstadoConexion(true);
+
+    _heartbeatTimer = Timer.periodic(const Duration(minutes: 2), (_) {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null && uid.isNotEmpty) {
+        actualizarEstadoConexion(true);
+      } else {
+        _heartbeatTimer?.cancel();
+      }
+    });
+  }
+
+  /// Detiene el latido y marca al usuario como desconectado en Firestore.
+  Future<void> detenerPresencia() async {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
+    await actualizarEstadoConexion(false);
+  }
+
   /// BLOQUE 4: Limpia los datos de sesión almacenados y cancela las suscripciones
   /// activas a Firestore cuando el usuario cierra sesión.
   void clearData() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
     _perfilUsuario?.dispose(); // Cancela el StreamSubscription de mensajes
     userEmail = '';
     userName = '';

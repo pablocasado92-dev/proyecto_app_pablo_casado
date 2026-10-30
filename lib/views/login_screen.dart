@@ -53,7 +53,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
         // 3. Almacenar el email y descargar el perfil del usuario desde Firestore
         DataHolder().userEmail = _emailController.text.trim();
-        await DataHolder.instance.descargarPerfil();
+        try {
+          await DataHolder.instance.descargarPerfil().timeout(
+            const Duration(seconds: 4),
+          );
+        } catch (e) {
+          debugPrint("Error descargando perfil en login: $e");
+        }
+
+        DataHolder.instance.iniciarPresencia();
 
         if (!mounted) return;
 

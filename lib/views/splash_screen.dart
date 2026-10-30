@@ -22,32 +22,48 @@ class _SplashScreenState extends State<SplashScreen> {
 
   /// Evalúa el estado de sesión y primerLogin para decidir el destino de navegación
   Future<void> _checkInitialRoute() async {
-    // 1. Inicializar el administrador de dispositivo
-    DataHolder.instance.initDeviceAdmin(context);
+    try {
+      // 1. Inicializar el administrador de dispositivo
+      DataHolder.instance.initDeviceAdmin(context);
 
-    // 2. Tiempo de carga visual para apreciar la animación (2.5 segundos)
-    await Future.delayed(const Duration(milliseconds: 2500));
+      // 2. Tiempo de carga visual para apreciar la animación (2.5 segundos)
+      await Future.delayed(const Duration(milliseconds: 2500));
 
-    // 3. Consultar si hay una sesión de usuario activa en Firebase Auth
-    final User? currentUser = FirebaseAuth.instance.currentUser;
-
-    if (!mounted) return;
-
-    // 4. Lógica de navegación de sesión basada en el perfil del usuario:
-    if (currentUser != null) {
-      // Sesión iniciada activa -> Cargar perfil desde Firestore
-      await DataHolder.instance.descargarPerfil();
       if (!mounted) return;
 
-      // Si es el primer login del usuario en su perfil, mostrar Onboarding justo antes de ir a Home
-      if (DataHolder.instance.perfilUsuario.primerLogin) {
-        Navigator.pushReplacementNamed(context, '/onboarding');
+      // 3. Consultar si hay una sesión de usuario activa en Firebase Auth
+      final User? currentUser = FirebaseAuth.instance.currentUser;
+
+      // 4. Lógica de navegación de sesión basada en el perfil del usuario:
+      if (currentUser != null) {
+        // Sesión iniciada activa -> Cargar perfil desde Firestore con timeout de seguridad
+        try {
+          await DataHolder.instance.descargarPerfil().timeout(
+            const Duration(seconds: 4),
+          );
+        } catch (e) {
+          debugPrint("Error descargando perfil en splash: $e");
+        }
+
+        DataHolder.instance.iniciarPresencia();
+
+        if (!mounted) return;
+
+        // Si es el primer login del usuario en su perfil, mostrar Onboarding justo antes de ir a Home
+        if (DataHolder.instance.perfilUsuario.primerLogin) {
+          Navigator.pushReplacementNamed(context, '/onboarding');
+        } else {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
       } else {
-        Navigator.pushReplacementNamed(context, '/home');
+        // Sesión no iniciada -> Ir directamente a la pantalla de Login
+        Navigator.pushReplacementNamed(context, '/login');
       }
-    } else {
-      // Sesión no iniciada -> Ir directamente a la pantalla de Login
-      Navigator.pushReplacementNamed(context, '/login');
+    } catch (e) {
+      debugPrint("Error en _checkInitialRoute: $e");
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/login');
+      }
     }
   }
 
@@ -63,7 +79,7 @@ class _SplashScreenState extends State<SplashScreen> {
             ClipRRect(
               borderRadius: BorderRadius.circular(20),
               child: Image.network(
-                'https://mmedia3.giphy.com/media/v1.Y2lkPTc5MGI3NjExOW5qOXozaTR2dm91MjU4c2s0czFqNG9yNW16c2cxNnc3Ym85N21tdyZlcD12MV_pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/oVLqOvUWz2fUheuGNz/giphy.gif',
+                'https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExOW5qOXozaTR2dm91MjU4c2s0czFqNG9yNW16c2cxNnc3Ym85N21tdyZlcD12MV_pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/oVLqOvUWz2fUheuGNz/giphy.gif',
                 height: 300,
                 width: 300,
                 fit: BoxFit.cover,

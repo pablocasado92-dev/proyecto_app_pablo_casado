@@ -1,5 +1,5 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../data/data_holder.dart';
 import '../ins_lib/bot_bars/ins_bot_bar_style1.dart';
@@ -43,12 +43,15 @@ class _HomeViewState extends State<HomeView> {
     final perfil = DataHolder.instance.perfilUsuario;
     perfil.addListener(_onMensajeRecibido);
     perfil.descargarMensajes();
+    DataHolder.instance.iniciarPresencia();
   }
 
   /// BLOQUE 4: Cierra la sesión en Firebase Auth y limpia todo lo que quede abierto
   /// (cancela el StreamSubscription de Firestore mediante clearData() -> perfil.dispose()).
   Future<void> _signOut(BuildContext context) async {
-    DataHolder.instance.clearData(); // Cancela las suscripciones activas y limpia memoria
+    await DataHolder.instance.detenerPresencia();
+    DataHolder.instance
+        .clearData(); // Cancela las suscripciones activas y limpia memoria
     await FirebaseAuth.instance.signOut();
 
     if (!context.mounted) return;
@@ -223,10 +226,7 @@ class _HomeViewState extends State<HomeView> {
               const SizedBox(height: 20),
 
               // Accesos rápidos limpios y modernos
-              const Text(
-                'ACCESOS RÁPIDOS',
-                style: AppTextos.seccion,
-              ),
+              const Text('ACCESOS RÁPIDOS', style: AppTextos.seccion),
               const SizedBox(height: 10),
 
               Row(
@@ -245,8 +245,8 @@ class _HomeViewState extends State<HomeView> {
                           borderRadius: BorderRadius.circular(AppRadios.campo),
                         ),
                       ),
-                      icon: const Icon(Icons.edit_outlined, size: 18),
-                      label: const Text('Editar Perfil'),
+                      icon: const Icon(Icons.people_outline_rounded, size: 18),
+                      label: const Text('Ver Perfiles'),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -263,7 +263,10 @@ class _HomeViewState extends State<HomeView> {
                           borderRadius: BorderRadius.circular(AppRadios.campo),
                         ),
                       ),
-                      icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                      icon: const Icon(
+                        Icons.chat_bubble_outline_rounded,
+                        size: 18,
+                      ),
                       label: const Text('Mis Chats'),
                     ),
                   ),

@@ -38,6 +38,12 @@ class Perfil {
   /// Indicar si es el primer inicio de sesión del usuario (para mostrar el Onboarding)
   bool primerLogin = true;
 
+  /// Indica si el usuario está actualmente conectado (En línea)
+  bool conectado = false;
+
+  /// Fecha y hora de la última interacción / heartbeat del usuario en Firestore
+  Timestamp? ultimaConexion;
+
   /// Mensajes pertenecientes a la conversación del usuario.
   List<Mensaje> mensajes = <Mensaje>[];
 
@@ -63,6 +69,8 @@ class Perfil {
     this.urlAvatar,
     this.fechaRegistro,
     this.primerLogin = true,
+    this.conectado = false,
+    this.ultimaConexion,
   });
 
   /// Registra una función callback (listener) cuando una pantalla entra en escena (initState).
@@ -106,6 +114,8 @@ class Perfil {
       urlAvatar: data?['urlAvatar'] as String?,
       fechaRegistro: data?['fechaRegistro'] as Timestamp?,
       primerLogin: (data?['primerLogin'] as bool?) ?? true,
+      conectado: (data?['conectado'] as bool?) ?? false,
+      ultimaConexion: data?['ultimaConexion'] as Timestamp?,
     );
   }
 
@@ -118,6 +128,8 @@ class Perfil {
       "urlAvatar": urlAvatar,
       if (fechaRegistro != null) "fechaRegistro": fechaRegistro,
       "primerLogin": primerLogin,
+      "conectado": conectado,
+      if (ultimaConexion != null) "ultimaConexion": ultimaConexion,
     };
   }
 
