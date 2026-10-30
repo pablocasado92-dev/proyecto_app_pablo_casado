@@ -1,0 +1,50 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Funciones auxiliares de autenticación y propiedad
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ===============================================================
+    // Colección: Perfiles
+    // Document ID: UID del usuario en Firebase Auth
+    // ===============================================================
+    match /Perfiles/{userId} {
+      // Permite la lectura a usuarios autenticados para explorar perfiles y chatear
+      allow read: if isAuthenticated();
+
+      // Solo el propio usuario puede crear, modificar o eliminar su perfil
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
+    }
+
+    // ===============================================================
+    // Colección: Mensajes
+    // Document ID: Autogenerado o ID del mensaje
+    // ===============================================================
+    match /Mensajes/{messageId} {
+      // Permite la lectura a cualquier usuario autenticado
+      allow read: if isAuthenticated();
+
+      // Permite enviar mensajes si el remitente coincide con el usuario autenticado
+      allow create: if isAuthenticated() && (
+        request.resource.data.remitenteUID == request.auth.uid ||
+        request.resource.data.remitenteUID == request.auth.token.email
+      );
+
+      // Permite actualizar mensajes a usuarios autenticados (marcar como leído: leido = true)
+      allow update: if isAuthenticated();
+
+      // Solo el autor del mensaje puede eliminarlo
+      allow delete: if isAuthenticated() && resource.data.remitenteUID == request.auth.uid;
+    }
+  }
+}
