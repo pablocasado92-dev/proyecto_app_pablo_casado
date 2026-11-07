@@ -115,6 +115,76 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  /// BLOQUE 1: Procesa el inicio de sesión con Google (Android + Web)
+  Future<void> _handleGoogleSignIn() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final credential = await DataHolder.instance.firebaseAdmin
+          .iniciarSesionConGoogle();
+
+      // RF-04: Si el usuario canceló o cerró el diálogo de Google, salir silenciosamente
+      if (credential == null || credential.user == null) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+        return;
+      }
+
+      // Sincronizar en memoria y descargar perfil de Firestore
+      DataHolder().userEmail = credential.user!.email ?? '';
+      try {
+        await DataHolder.instance.descargarPerfil().timeout(
+          const Duration(seconds: 4),
+        );
+      } catch (e) {
+        debugPrint("Error descargando perfil tras Google Sign-In: $e");
+      }
+
+      // Activar presencia online
+      DataHolder.instance.iniciarPresencia();
+
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      // Navegar según el estado del usuario
+      if (DataHolder.instance.perfilUsuario.primerLogin) {
+        Navigator.pushReplacementNamed(context, '/onboarding');
+      } else {
+        Navigator.pushReplacementNamed(context, '/home');
+      }
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error con Google: ${e.message ?? e.code}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al iniciar con Google: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -234,6 +304,73 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           )
                         : const Text('Iniciar Sesión'),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Separador visual: "o continúa con"
+                  Row(
+                    children: const [
+                      Expanded(child: Divider(color: AppColores.divisor)),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 12.0),
+                        child: Text(
+                          'o continúa con',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColores.textoSecundario,
+                          ),
+                        ),
+                      ),
+                      Expanded(child: Divider(color: AppColores.divisor)),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // BLOQUE 1: Botón de Inicio de Sesión con Google
+                  OutlinedButton(
+                    onPressed: _isLoading ? null : _handleGoogleSignIn,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      side: const BorderSide(
+                        color: AppColores.divisor,
+                        width: 1.5,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      backgroundColor: Colors.white,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
+                          child: const Text(
+                            'G',
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Continuar con Google',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: AppColores.oscuro,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 16),
 

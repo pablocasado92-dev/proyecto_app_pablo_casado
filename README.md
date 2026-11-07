@@ -240,3 +240,54 @@ Se ha probado la aplicación de extremo a extremo tanto en **Emulador Android (A
 | **7. Sección en Cuadrícula (`EditProfileView` / `Perfiles`)** | Listado de perfiles vinculados a conversaciones activas en `GridView.builder` (2 columnas) con badge de conexión (En línea/Desconectado), estados de carga, vacío y error, más edición del propio perfil. | Mostrar las celdas en cuadrícula únicamente de los contactos con chats activos (avatar, nombre, edad o email, estado de conexión y botón para chatear); permitir al usuario editar su propio perfil y refrescar la cuadrícula. | ✅ Correcto. Carga reactiva de los elementos filtrados de la colección, manejo de estados y guardado persistente con `.withConverter<Perfil>`. | En Web las tarjetas se expanden horizontalmente adaptándose al ancho del navegador; en Android la cuadrícula vertical de 2 columnas aprovecha la pantalla móvil. |
 | **8. Navegación por Rutas y Parámetros** | Pulsar una conversación o el botón *Chatear* de un perfil para abrir `/chat`. | Navegar mediante `Navigator.pushNamed` pasando el contacto en `arguments` y cargar su hilo de mensajes. | ✅ Correcto. `ChatScreen` recibe el parámetro y marca los mensajes como leídos. | En Web la URL de la barra de direcciones del navegador cambia reflejando la ruta nombrada (`/#/chat`). |
 | **9. Cierre de Sesión y `dispose()`** | Cambiar entre pantallas y pulsar el botón de cerrar sesión en `/home`. | Cancelar listeners en `dispose()`, cancelar el `StreamSubscription` de Firestore y volver a `/login`. | ✅ Correcto. Sin errores de `setState() called after dispose()` ni lecturas residuales. | Comportamiento idéntico del ciclo de vida de widgets en ambas plataformas. |
+
+---
+
+## 🌐 7. Fase 1b — Bloque 1: Autenticación con Google (Google Sign-In)
+
+En esta fase se añade la autenticación federada con Google, interoperable tanto en **Android** como en **Web**.
+
+### 7.1. Características Implementadas
+1. **Inicio de sesión nativo y Web (`lib/admins/firebase_admin.dart`)**:
+   - En **Android/iOS**, utiliza el SDK nativo de Google Play Services mediante el paquete oficial `google_sign_in: ^6.2.2`.
+   - En **Web**, lanza de forma segura el popup oficial de `GoogleAuthProvider` sin requerir bibliotecas JavaScript externas.
+2. **Tratamiento silencioso y seguro de la cancelación (`RF-04`)**:
+   - Si el usuario cierra el selector de cuentas de Google o cancela el modal, la función `iniciarSesionConGoogle()` retorna `null`. La pantalla de login desactiva el indicador de carga y no muestra mensajes de error molestos.
+3. **Sincronización automática de perfil en Firestore (`RF-05`)**:
+   - **Usuario nuevo**: Si el `uid` no existe en la colección `Perfiles`, se crea automáticamente su documento con el `name` (displayName), `email`, `urlAvatar` (photoURL) de Google y `primerLogin: false`.
+   - **Usuario recurrente**: Si el perfil ya existe, se descargan sus datos respetando su información personalizada previa y actualizando su estado a `conectado: true`.
+4. **Activación de Presencia y Navegación**:
+   - Tras el acceso exitoso, se activa el servicio de presencia online (`DataHolder.instance.iniciarPresencia()`) y se redirige a `/home`.
+
+### 7.2. Configuración Requerida en Firebase Console (Guía para Evaluación)
+Para que Google Sign-In funcione correctamente al compilar y probar la aplicación:
+
+#### 1. Habilitar el Proveedor en Firebase Console:
+1. Ve a tu proyecto en [Firebase Console](https://console.firebase.google.com/).
+2. Entra en **Authentication** ➔ pestaña **Sign-in method**.
+3. Pulsa sobre **Google**, activa el interruptor de habilitación, selecciona el correo de soporte del proyecto y pulsa **Guardar**.
+
+#### 2. Registrar la Huella Digital SHA-1 de Depuración (en Android):
+En Android, Google Play Services valida la identidad de la aplicación mediante la huella digital del certificado de firma (`debug.keystore`).
+
+Para obtener tu huella SHA-1 de depuración local:
+* **En Windows (PowerShell / CMD):**
+  ```powershell
+  keytool -list -v -keystore "$env:USERPROFILE\.android\debug.keystore" -alias androiddebugkey -storepass android -keypass android
+  ```
+* **En macOS / Linux (Terminal):**
+  ```bash
+  keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android
+  ```
+* **O mediante Gradle:**
+  ```bash
+  cd android
+  ./gradlew signingReport
+  ```
+
+Una vez obtenida la huella (ejemplo: `AA:BB:CC:...:11:22`):
+1. En Firebase Console, entra en **Configuración del proyecto** (icono de engranaje).
+2. En la sección **Tus apps**, selecciona la aplicación de **Android**.
+3. En el apartado **Huellas digitales de certificados SHA**, pulsa en **Añadir huella digital** y pega tu SHA-1.
+4. Vuelve a descargar el archivo `google-services.json` actualizado y colócalo en `android/app/google-services.json`.
+

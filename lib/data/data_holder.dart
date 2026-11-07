@@ -71,6 +71,55 @@ class DataHolder {
   /// Cachés en memoria para no consultar Firestore repetidamente
   final Map<String, String> _userEmailCache = {};
   final Map<String, String> _userNameCache = {};
+  final Map<String, String> _emailToUidCache = {};
+
+  /// Obtiene de forma síncrona el correo si ya está en caché
+  String getEmailCached(String uid) => _userEmailCache[uid] ?? '';
+
+  /// Obtiene de forma síncrona el UID si ya está en caché
+  String getUidCached(String email) =>
+      _emailToUidCache[email.trim().toLowerCase()] ?? '';
+
+  /// Resuelve un identificador (Email o UID) devolviendo siempre el UID canónico
+  Future<String> resolverContactoUid(String? uidOrEmail) async {
+    if (uidOrEmail == null || uidOrEmail.trim().isEmpty) return '';
+    final String clean = uidOrEmail.trim();
+    final String cleanLower = clean.toLowerCase();
+
+    // Si no contiene '@', ya es un UID directo
+    if (!cleanLower.contains('@')) {
+      return clean;
+    }
+
+    // Si es un email y ya está en caché
+    if (_emailToUidCache.containsKey(cleanLower)) {
+      return _emailToUidCache[cleanLower]!;
+    }
+
+    try {
+      // Buscar en Firestore el perfil cuyo campo email coincida
+      final query = await db
+          .collection("Perfiles")
+          .where("email", isEqualTo: cleanLower)
+          .limit(1)
+          .get();
+
+      if (query.docs.isNotEmpty) {
+        final String resolvedUid = query.docs.first.id;
+        _emailToUidCache[cleanLower] = resolvedUid;
+        _userEmailCache[resolvedUid] = cleanLower;
+        final docData = query.docs.first.data();
+        if (docData['name'] != null) {
+          _userNameCache[resolvedUid] = docData['name'] as String;
+        }
+        return resolvedUid;
+      }
+    } catch (e) {
+      debugPrint("Error resolviendo UID para email $cleanLower: $e");
+    }
+
+    return clean;
+  }
 
   /// Obtiene el correo electrónico asociado a un UID consultando la colección "Perfiles"
   Future<String> getEmailByUid(String? uid) async {
@@ -92,6 +141,9 @@ class DataHolder {
             ? data['email'] as String
             : (data['name'] as String? ?? uid);
         _userEmailCache[uid] = emailEncontrado;
+        if (emailEncontrado.contains('@')) {
+          _emailToUidCache[emailEncontrado.trim().toLowerCase()] = uid;
+        }
         return emailEncontrado;
       }
     } catch (e) {
@@ -159,15 +211,22 @@ class DataHolder {
     for (Mensaje m in perfilUsuario.mensajes) {
       final String rem = (m.remitenteUID ?? "").trim().toLowerCase();
 
-      String contactoKey = "";
+      String rawContactoKey = "";
       if (rem == myUidClean ||
           (myEmailClean.isNotEmpty && rem == myEmailClean)) {
-        contactoKey = m.destinatarioUID ?? "";
+        rawContactoKey = (m.destinatarioUID ?? "").trim();
       } else {
-        contactoKey = m.remitenteUID ?? "";
+        rawContactoKey = (m.remitenteUID ?? "").trim();
       }
 
-      if (contactoKey.isEmpty) continue;
+      if (rawContactoKey.isEmpty) continue;
+
+      // Normalizar la clave de contacto: si es un email que mapea a un UID conocido, unificarlo
+      final String rawLower = rawContactoKey.toLowerCase();
+      String contactoKey = rawContactoKey;
+      if (rawLower.contains('@') && _emailToUidCache.containsKey(rawLower)) {
+        contactoKey = _emailToUidCache[rawLower]!;
+      }
 
       if (!grupos.containsKey(contactoKey)) {
         grupos[contactoKey] = [];

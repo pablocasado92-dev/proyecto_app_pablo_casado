@@ -58,14 +58,20 @@ class _ChatScreenState extends State<ChatScreen> {
     final String? contacto = DataHolder.instance.contactoChatSeleccionado;
     if (contacto == null || contacto.isEmpty) return;
     final contactClean = contacto.toLowerCase();
+    final contactEmail = DataHolder.instance
+        .getEmailCached(contacto)
+        .toLowerCase();
+    final contactUid = DataHolder.instance.getUidCached(contacto).toLowerCase();
     final perfil = DataHolder.instance.perfilUsuario;
 
     for (Mensaje m in perfil.mensajes) {
       final String rem = (m.remitenteUID ?? "").toLowerCase();
-      if (!m.leido &&
-          (rem == contactClean ||
-              contactClean.contains(rem) ||
-              rem.contains(contactClean))) {
+      final bool remEsContacto =
+          rem == contactClean ||
+          (contactEmail.isNotEmpty && rem == contactEmail) ||
+          (contactUid.isNotEmpty && rem == contactUid);
+
+      if (!m.leido && remEsContacto) {
         m.leido = true;
         m.update();
       }
@@ -98,11 +104,16 @@ class _ChatScreenState extends State<ChatScreen> {
         ? DataHolder.instance.perfilUsuario.uid
         : (FirebaseAuth.instance.currentUser?.uid ?? "");
 
+    // Resolver el contacto al UID canónico si fuera un correo
+    final String destCanonica = await DataHolder.instance.resolverContactoUid(
+      contacto,
+    );
+
     try {
       Mensaje mensajeNuevo = Mensaje.initCampos(
         "",
         texto,
-        contacto, // destinatarioUID (UID o Email del contacto)
+        destCanonica, // destinatarioUID (UID canónico del contacto)
         myUid, // remitenteUID
         Timestamp.now(),
       );
@@ -200,6 +211,10 @@ class _ChatScreenState extends State<ChatScreen> {
         (FirebaseAuth.instance.currentUser?.email ?? perfil.email ?? "")
             .toLowerCase();
     final contactClean = contacto.toLowerCase();
+    final contactEmail = DataHolder.instance
+        .getEmailCached(contacto)
+        .toLowerCase();
+    final contactUid = DataHolder.instance.getUidCached(contacto).toLowerCase();
 
     final List<Mensaje> filtrados = [];
 
@@ -207,10 +222,21 @@ class _ChatScreenState extends State<ChatScreen> {
       final dest = (m.destinatarioUID ?? "").toLowerCase();
       final rem = (m.remitenteUID ?? "").toLowerCase();
 
-      final bool esEnviadoAlContacto =
-          ((rem == myUid || rem == myEmail) && (dest == contactClean));
-      final bool esRecibidoDelContacto =
-          ((rem == contactClean) && (dest == myUid || dest == myEmail));
+      final bool destEsContacto =
+          dest == contactClean ||
+          (contactEmail.isNotEmpty && dest == contactEmail) ||
+          (contactUid.isNotEmpty && dest == contactUid);
+
+      final bool remEsContacto =
+          rem == contactClean ||
+          (contactEmail.isNotEmpty && rem == contactEmail) ||
+          (contactUid.isNotEmpty && rem == contactUid);
+
+      final bool remEsMio = (rem == myUid || rem == myEmail);
+      final bool destEsMio = (dest == myUid || dest == myEmail);
+
+      final bool esEnviadoAlContacto = remEsMio && destEsContacto;
+      final bool esRecibidoDelContacto = remEsContacto && destEsMio;
 
       if (esEnviadoAlContacto || esRecibidoDelContacto) {
         filtrados.add(m);

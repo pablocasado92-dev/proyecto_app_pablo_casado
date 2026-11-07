@@ -1,6 +1,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Permiso esencial para cargar imágenes desde URL en Android -->
+    <!-- Permiso esencial para cargar imágenes desde URL y Firebase en Android -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Permisos para captura de fotos con cámara y selección desde galería -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+
+    <!-- Declaración de hardware opcional de cámara para permitir instalación en emuladores o dispositivos sin cámara física -->
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
 
     <application
         android:label="proyecto_app_pablo_casado"

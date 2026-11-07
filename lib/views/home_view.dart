@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 
 import '../data/data_holder.dart';
 import '../ins_lib/bot_bars/ins_bot_bar_style1.dart';
@@ -53,6 +53,14 @@ class _HomeViewState extends State<HomeView> {
     DataHolder.instance
         .clearData(); // Cancela las suscripciones activas y limpia memoria
     await FirebaseAuth.instance.signOut();
+
+    // Desconectar también la cuenta de Google para que al volver a entrar
+    // el usuario pueda elegir otra cuenta distinta si lo desea
+    try {
+      await DataHolder.instance.firebaseAdmin.cerrarSesionGoogle();
+    } catch (e) {
+      debugPrint("Aviso al cerrar sesión Google: $e");
+    }
 
     if (!context.mounted) return;
     Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
@@ -145,6 +153,14 @@ class _HomeViewState extends State<HomeView> {
                           backgroundImage:
                               (avatarUrl != null && avatarUrl.isNotEmpty)
                               ? NetworkImage(avatarUrl)
+                              : null,
+                          onBackgroundImageError:
+                              (avatarUrl != null && avatarUrl.isNotEmpty)
+                              ? (exception, stackTrace) {
+                                  debugPrint(
+                                    "Aviso Web/CORS: No se pudo cargar el avatar: $exception",
+                                  );
+                                }
                               : null,
                           child: (avatarUrl == null || avatarUrl.isEmpty)
                               ? const Icon(

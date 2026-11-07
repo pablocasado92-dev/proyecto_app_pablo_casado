@@ -10,8 +10,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Clase modelo que representa un mensaje individual de chat (no es un widget).
 class Mensaje {
-  /// Instancia de Cloud Firestore para operaciones de actualización directa.
-  var db = FirebaseFirestore.instance;
+  /// Instancia de Cloud Firestore (acceso perezoso para pruebas unitarias deterministas).
+  FirebaseFirestore get db => FirebaseFirestore.instance;
 
   /// Identificador único (ID) del documento en la colección "Mensajes".
   String? uid;
@@ -86,4 +86,3 @@ class Mensaje {
     }
   }
 }
-

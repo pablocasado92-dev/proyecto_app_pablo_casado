@@ -14,8 +14,8 @@ import 'mensaje.dart';
 
 /// Perfil del usuario logueado. Clase modelo (no es un widget).
 class Perfil {
-  /// Acceso a Cloud Firestore.
-  var db = FirebaseFirestore.instance;
+  /// Acceso a Cloud Firestore (acceso perezoso para permitir pruebas unitarias deterministas).
+  FirebaseFirestore get db => FirebaseFirestore.instance;
 
   /// Id del documento = uid del usuario en Firebase Auth.
   String uid = "";

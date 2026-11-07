@@ -89,18 +89,24 @@ class _ConversacionesViewState extends State<ConversacionesView> {
               child: const Text('Cancelar'),
             ),
             FilledButton(
-              onPressed: () {
+              onPressed: () async {
                 if (dialogFormKey.currentState!.validate()) {
                   final String emailContacto = emailController.text
                       .trim()
                       .toLowerCase();
-                  DataHolder.instance.contactoChatSeleccionado = emailContacto;
                   Navigator.pop(context);
-                  // Navegación por ruta nombrada pasando el contacto como parámetro (arguments)
+
+                  // Resolver el email a su UID canónico en Firestore
+                  final String uidContacto = await DataHolder.instance
+                      .resolverContactoUid(emailContacto);
+
+                  DataHolder.instance.contactoChatSeleccionado = uidContacto;
+                  if (!context.mounted) return;
+                  // Navegación por ruta nombrada pasando el contacto canónico
                   Navigator.pushNamed(
                     context,
                     '/chat',
-                    arguments: emailContacto,
+                    arguments: uidContacto,
                   ).then((_) {
                     if (mounted) {
                       setState(() {

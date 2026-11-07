@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../data/data_holder.dart';
 import '../ins_lib/bot_bars/ins_bot_bar_style1.dart';
@@ -23,23 +25,20 @@ class EditProfileView extends StatefulWidget {
 class _EditProfileViewState extends State<EditProfileView> {
   // Lista de perfiles de contactos con los que existen conversaciones
   List<Perfil> _perfiles = [];
-
-  // Estados de la colección (Carga, Vacío y Error)
   bool _isLoading = true;
   String? _errorMessage;
 
   void _onMensajesActualizados(int _) {
-    if (mounted) {
-      _cargarPerfilesDesdeFirestore();
-    }
+    // Si llegan nuevos mensajes en tiempo real, recargar la lista de perfiles
+    _cargarPerfilesDesdeFirestore();
   }
 
   @override
   void initState() {
     super.initState();
     DataHolder.instance.iBotBarIndex = 1;
+    // Escuchar cambios en los mensajes del usuario para refrescar la cuadrícula en vivo
     DataHolder.instance.perfilUsuario.addListener(_onMensajesActualizados);
-    DataHolder.instance.perfilUsuario.descargarMensajes();
     _cargarPerfilesDesdeFirestore();
   }
 
@@ -182,10 +181,16 @@ class _EditProfileViewState extends State<EditProfileView> {
     final perfilActual = DataHolder.instance.perfilUsuario;
     final formKey = GlobalKey<FormState>();
     final nameController = TextEditingController(text: perfilActual.name ?? '');
-    final avatarUrlController = TextEditingController(
-      text: perfilActual.urlAvatar ?? '',
-    );
-    int? selectedEdad = perfilActual.edad;
+    String currentAvatarUrl = perfilActual.urlAvatar ?? '';
+    XFile? nuevaImagenSeleccionada;
+    Uint8List? previewBytes;
+    // Rango de edad permitido: 16 a 99 años. Si el valor actual está fuera, ajustar a null.
+    int? selectedEdad =
+        (perfilActual.edad != null &&
+            perfilActual.edad! >= 16 &&
+            perfilActual.edad! <= 99)
+        ? perfilActual.edad
+        : null;
     bool primerLogin = perfilActual.primerLogin;
     bool isSavingModal = false;
 
@@ -201,6 +206,89 @@ class _EditProfileViewState extends State<EditProfileView> {
       builder: (modalContext) {
         return StatefulBuilder(
           builder: (ctx, setModalState) {
+            // Función auxiliar para seleccionar imagen desde Cámara o Galería
+            Future<void> seleccionarImagen(ImageSource source) async {
+              Navigator.pop(ctx); // Cierra el selector de origen
+              try {
+                final picker = ImagePicker();
+                final picked = await picker.pickImage(
+                  source: source,
+                  maxWidth: 1024,
+                  maxHeight: 1024,
+                  imageQuality: 85,
+                );
+
+                if (picked != null) {
+                  final bytes = await picked.readAsBytes();
+                  setModalState(() {
+                    nuevaImagenSeleccionada = picked;
+                    previewBytes = bytes;
+                  });
+                }
+              } catch (e) {
+                debugPrint("Error al seleccionar imagen: $e");
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'No se pudo acceder a la ${source == ImageSource.camera ? "cámara" : "galería"}. Revisa los permisos de la aplicación.',
+                    ),
+                    backgroundColor: Colors.redAccent,
+                  ),
+                );
+              }
+            }
+
+            // Muestra menú de opciones: Cámara o Galería
+            void mostrarOpcionesOrigen() {
+              showModalBottomSheet(
+                context: modalContext,
+                backgroundColor: Colors.white,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(AppRadios.cabecera),
+                  ),
+                ),
+                builder: (pickerCtx) {
+                  return SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'Seleccionar Foto de Perfil',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppColores.oscuro,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          ListTile(
+                            leading: const Icon(
+                              Icons.camera_alt_rounded,
+                              color: AppColores.oscuro,
+                            ),
+                            title: const Text('Tomar foto con la cámara'),
+                            onTap: () => seleccionarImagen(ImageSource.camera),
+                          ),
+                          ListTile(
+                            leading: const Icon(
+                              Icons.photo_library_rounded,
+                              color: AppColores.oscuro,
+                            ),
+                            title: const Text('Elegir de la galería'),
+                            onTap: () => seleccionarImagen(ImageSource.gallery),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            }
+
             return Padding(
               padding: EdgeInsets.only(
                 left: AppEspacios.md,
@@ -249,30 +337,78 @@ class _EditProfileViewState extends State<EditProfileView> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Vista previa dinámica del Avatar
+                      // Selector visual de Avatar (Cámara / Galería con vista previa)
                       Center(
-                        child: ValueListenableBuilder<TextEditingValue>(
-                          valueListenable: avatarUrlController,
-                          builder: (context, val, _) {
-                            final String url = val.text.trim();
-                            return CircleAvatar(
-                              radius: 36,
-                              backgroundColor: AppColores.principal,
-                              backgroundImage: url.isNotEmpty
-                                  ? NetworkImage(url)
+                        child: Stack(
+                          alignment: Alignment.bottomRight,
+                          children: [
+                            CircleAvatar(
+                              radius: 46,
+                              backgroundColor: AppColores.suave,
+                              backgroundImage: previewBytes != null
+                                  ? MemoryImage(previewBytes!)
+                                  : (currentAvatarUrl.isNotEmpty
+                                        ? NetworkImage(currentAvatarUrl)
+                                              as ImageProvider
+                                        : null),
+                              onBackgroundImageError:
+                                  currentAvatarUrl.isNotEmpty
+                                  ? (exception, stackTrace) {
+                                      debugPrint("Aviso Web/CORS: $exception");
+                                    }
                                   : null,
-                              child: url.isEmpty
+                              child:
+                                  (previewBytes == null &&
+                                      currentAvatarUrl.isEmpty)
                                   ? const Icon(
                                       Icons.person,
-                                      size: 40,
-                                      color: Colors.white,
+                                      size: 50,
+                                      color: AppColores.oscuro,
                                     )
                                   : null,
-                            );
-                          },
+                            ),
+                            Material(
+                              color: AppColores.oscuro,
+                              shape: const CircleBorder(),
+                              elevation: 2,
+                              child: InkWell(
+                                customBorder: const CircleBorder(),
+                                onTap: isSavingModal
+                                    ? null
+                                    : mostrarOpcionesOrigen,
+                                child: const Padding(
+                                  padding: EdgeInsets.all(8.0),
+                                  child: Icon(
+                                    Icons.camera_alt_rounded,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 6),
+                      Center(
+                        child: TextButton.icon(
+                          onPressed: isSavingModal
+                              ? null
+                              : mostrarOpcionesOrigen,
+                          icon: const Icon(
+                            Icons.add_a_photo_outlined,
+                            size: 16,
+                          ),
+                          label: const Text(
+                            'Cambiar Foto',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
 
                       // Campo: Nombre
                       TextFormField(
@@ -307,8 +443,8 @@ class _EditProfileViewState extends State<EditProfileView> {
                             ),
                           ),
                         ),
-                        items: List.generate(100, (i) {
-                          final e = i + 1;
+                        items: List.generate(84, (i) {
+                          final e = 16 + i; // Rango de 16 a 99 años
                           return DropdownMenuItem<int>(
                             value: e,
                             child: Text('$e años'),
@@ -319,22 +455,6 @@ class _EditProfileViewState extends State<EditProfileView> {
                             selectedEdad = val;
                           });
                         },
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Campo: URL Foto Avatar
-                      TextFormField(
-                        controller: avatarUrlController,
-                        decoration: InputDecoration(
-                          labelText: 'URL Foto de Avatar',
-                          hintText: 'https://ejemplo.com/avatar.png',
-                          prefixIcon: const Icon(Icons.link_rounded),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(
-                              AppRadios.campo,
-                            ),
-                          ),
-                        ),
                       ),
                       const SizedBox(height: 12),
 
@@ -405,16 +525,29 @@ class _EditProfileViewState extends State<EditProfileView> {
                                     FirebaseAuth.instance.currentUser?.uid ??
                                     DataHolder.instance.perfilUsuario.uid;
                                 final nuevoNombre = nameController.text.trim();
-                                final nuevaUrl = avatarUrlController.text
-                                    .trim();
 
                                 try {
                                   if (uid.isNotEmpty) {
+                                    // 1. Si se eligió una foto nueva, subirla a Firebase Storage
+                                    if (nuevaImagenSeleccionada != null) {
+                                      final urlSubida = await DataHolder
+                                          .instance
+                                          .storageAdmin
+                                          .subirAvatar(
+                                            nuevaImagenSeleccionada!,
+                                            uid,
+                                          );
+                                      if (urlSubida.isNotEmpty) {
+                                        currentAvatarUrl = urlSubida;
+                                      }
+                                    }
+
+                                    // 2. Actualizar perfil local y en Firestore
                                     final perfilMemoria =
                                         DataHolder.instance.perfilUsuario;
                                     perfilMemoria.name = nuevoNombre;
                                     perfilMemoria.edad = selectedEdad;
-                                    perfilMemoria.urlAvatar = nuevaUrl;
+                                    perfilMemoria.urlAvatar = currentAvatarUrl;
                                     perfilMemoria.primerLogin = primerLogin;
 
                                     // Guardado en Firestore con .withConverter<Perfil>
@@ -450,18 +583,31 @@ class _EditProfileViewState extends State<EditProfileView> {
                                     ),
                                   );
                                 } catch (e) {
-                                  setModalState(() {
-                                    isSavingModal = false;
-                                  });
+                                  debugPrint("Error guardando perfil: $e");
                                   if (!mounted) return;
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text('Error al guardar: $e'),
-                                      backgroundColor: Colors.red,
+                                      content: Text(
+                                        'Error al actualizar perfil: $e',
+                                      ),
+                                      backgroundColor: Colors.redAccent,
                                     ),
                                   );
+                                } finally {
+                                  setModalState(() {
+                                    isSavingModal = false;
+                                  });
                                 }
                               },
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          backgroundColor: AppColores.oscuro,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              AppRadios.campo,
+                            ),
+                          ),
+                        ),
                         icon: isSavingModal
                             ? const SizedBox(
                                 width: 18,
@@ -471,16 +617,10 @@ class _EditProfileViewState extends State<EditProfileView> {
                                   color: Colors.white,
                                 ),
                               )
-                            : const Icon(Icons.save_rounded),
-                        label: const Text('Guardar Cambios'),
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          backgroundColor: AppColores.oscuro,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(
-                              AppRadios.campo,
-                            ),
-                          ),
+                            : const Icon(Icons.check_circle_outline_rounded),
+                        label: Text(
+                          isSavingModal ? 'Guardando...' : 'Guardar Cambios',
+                          style: const TextStyle(fontSize: 15),
                         ),
                       ),
                     ],
@@ -500,15 +640,15 @@ class _EditProfileViewState extends State<EditProfileView> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Perfiles en Conversación'),
+        title: const Text('Perfiles'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Actualizar perfiles',
+            tooltip: 'Recargar perfiles',
             onPressed: _cargarPerfilesDesdeFirestore,
           ),
           IconButton(
-            icon: const Icon(Icons.edit_note_rounded),
+            icon: const Icon(Icons.manage_accounts_outlined),
             tooltip: 'Editar mi perfil',
             onPressed: _mostrarModalEdicionPerfil,
           ),
@@ -516,15 +656,15 @@ class _EditProfileViewState extends State<EditProfileView> {
       ),
       body: SafeArea(
         child: _isLoading
-            // 1. ESTADO DE CARGA
+            // ESTADO 1: CARGA
             ? const Center(
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    CircularProgressIndicator(color: AppColores.oscuro),
-                    SizedBox(height: 14),
+                    CircularProgressIndicator(color: AppColores.principal),
+                    SizedBox(height: 12),
                     Text(
-                      'Cargando perfiles con conversaciones activas...',
+                      'Cargando perfiles...',
                       style: TextStyle(
                         fontSize: 14,
                         color: AppColores.textoSecundario,
@@ -534,31 +674,34 @@ class _EditProfileViewState extends State<EditProfileView> {
                 ),
               )
             : _errorMessage != null
-            // 2. ESTADO DE ERROR
+            // ESTADO 2: ERROR
             ? Center(
                 child: Padding(
-                  padding: const EdgeInsets.all(24.0),
+                  padding: const EdgeInsets.all(AppEspacios.lg),
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       const Icon(
                         Icons.error_outline_rounded,
-                        size: 56,
-                        color: AppColores.error,
+                        size: 48,
+                        color: Colors.redAccent,
                       ),
                       const SizedBox(height: 12),
                       Text(
                         _errorMessage!,
                         textAlign: TextAlign.center,
                         style: const TextStyle(
-                          color: AppColores.texto,
                           fontSize: 14,
+                          color: AppColores.texto,
                         ),
                       ),
                       const SizedBox(height: 16),
-                      ElevatedButton.icon(
+                      FilledButton.icon(
                         onPressed: _cargarPerfilesDesdeFirestore,
-                        icon: const Icon(Icons.refresh_rounded),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColores.oscuro,
+                        ),
+                        icon: const Icon(Icons.refresh_rounded, size: 18),
                         label: const Text('Reintentar'),
                       ),
                     ],
@@ -566,30 +709,30 @@ class _EditProfileViewState extends State<EditProfileView> {
                 ),
               )
             : _perfiles.isEmpty
-            // 3. ESTADO VACÍO
+            // ESTADO 3: VACÍO
             ? Center(
                 child: Padding(
-                  padding: const EdgeInsets.all(24.0),
+                  padding: const EdgeInsets.all(AppEspacios.lg),
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       const Icon(
-                        Icons.chat_bubble_outline_rounded,
-                        size: 64,
-                        color: AppColores.textoSecundario,
+                        Icons.forum_outlined,
+                        size: 56,
+                        color: AppColores.divisor,
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 12),
                       const Text(
-                        'Sin conversaciones iniciadas',
+                        'Aún no tienes chats iniciados',
                         style: TextStyle(
-                          fontSize: 17,
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: AppColores.oscuro,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       const Text(
-                        'Solo se muestran los perfiles de personas con las que has intercambiado mensajes.\nInicia una conversación para ver sus perfiles aquí.',
+                        'Aquí se mostrarán los perfiles de los contactos con quienes mantengas conversaciones activas.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 13,
@@ -597,36 +740,49 @@ class _EditProfileViewState extends State<EditProfileView> {
                         ),
                       ),
                       const SizedBox(height: 20),
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.popAndPushNamed(context, '/conversaciones');
-                        },
-                        icon: const Icon(Icons.forum_outlined),
-                        label: const Text('Ir a Mensajes'),
+                      OutlinedButton.icon(
+                        onPressed: _mostrarModalEdicionPerfil,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColores.oscuro,
+                          side: const BorderSide(color: AppColores.principal),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              AppRadios.campo,
+                            ),
+                          ),
+                        ),
+                        icon: const Icon(Icons.person_outline_rounded),
+                        label: const Text('Configurar Mi Perfil'),
                       ),
                     ],
                   ),
                 ),
               )
-            // 4. CONTENIDO PRINCIPAL: PERFILES EN CONVERSACIÓN (GridView.builder)
+            // ESTADO 4: CUADRÍCULA CON PERFILES DE CONTACTOS EN CHAT
             : RefreshIndicator(
                 onRefresh: _cargarPerfilesDesdeFirestore,
-                color: AppColores.oscuro,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Cabecera resumen de la sección en cuadrícula
+                    // Cabecera informativa sobre la cuadrícula
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0,
+                        vertical: 10.0,
+                      ),
                       child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Text(
-                                  'PERFILES EN CONVERSACIÓN',
-                                  style: AppTextos.seccion,
+                                  'Contactos Activos',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColores.oscuro,
+                                  ),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
@@ -797,6 +953,15 @@ class _EditProfileViewState extends State<EditProfileView> {
                                               avatarUrl.isNotEmpty)
                                           ? NetworkImage(avatarUrl)
                                           : null,
+                                      onBackgroundImageError:
+                                          (avatarUrl != null &&
+                                              avatarUrl.isNotEmpty)
+                                          ? (exception, stackTrace) {
+                                              debugPrint(
+                                                "Aviso Web/CORS en perfil: $exception",
+                                              );
+                                            }
+                                          : null,
                                       child:
                                           (avatarUrl == null ||
                                               avatarUrl.isEmpty)
@@ -815,13 +980,13 @@ class _EditProfileViewState extends State<EditProfileView> {
                                       overflow: TextOverflow.ellipsis,
                                       textAlign: TextAlign.center,
                                       style: const TextStyle(
+                                        fontSize: 13,
                                         fontWeight: FontWeight.bold,
-                                        fontSize: 14,
                                         color: AppColores.texto,
                                       ),
                                     ),
 
-                                    // Información de edad o email
+                                    // Edad o correo del contacto
                                     if (perfil.edad != null)
                                       Container(
                                         padding: const EdgeInsets.symmetric(
@@ -831,7 +996,7 @@ class _EditProfileViewState extends State<EditProfileView> {
                                         decoration: BoxDecoration(
                                           color: AppColores.suave,
                                           borderRadius: BorderRadius.circular(
-                                            12,
+                                            10,
                                           ),
                                         ),
                                         child: Text(
