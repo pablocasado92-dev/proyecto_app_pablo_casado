@@ -6,9 +6,15 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
 
-    <!-- Declaración de hardware opcional de cámara para permitir instalación en emuladores o dispositivos sin cámara física -->
+    <!-- Permisos de localización (Bloque 5): GPS de alta precisión y red/triangulación -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+
+    <!-- Declaración de hardware opcional para permitir instalación en emuladores sin sensores físicos -->
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
+    <uses-feature android:name="android.hardware.location.gps" android:required="false"/>
+    <uses-feature android:name="android.hardware.location.network" android:required="false"/>
 
     <application
         android:label="proyecto_app_pablo_casado"

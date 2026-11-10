@@ -44,6 +44,12 @@ class Perfil {
   /// Fecha y hora de la última interacción / heartbeat del usuario en Firestore
   Timestamp? ultimaConexion;
 
+  /// BLOQUE 5: Coordenadas geográficas actuales del usuario (GeoPoint)
+  GeoPoint? posicion;
+
+  /// BLOQUE 5: Fecha y hora en la que se capturó o actualizó la posición
+  Timestamp? fechaPosicion;
+
   /// Mensajes pertenecientes a la conversación del usuario.
   List<Mensaje> mensajes = <Mensaje>[];
 
@@ -71,6 +77,8 @@ class Perfil {
     this.primerLogin = true,
     this.conectado = false,
     this.ultimaConexion,
+    this.posicion,
+    this.fechaPosicion,
   });
 
   /// Registra una función callback (listener) cuando una pantalla entra en escena (initState).
@@ -116,6 +124,8 @@ class Perfil {
       primerLogin: (data?['primerLogin'] as bool?) ?? true,
       conectado: (data?['conectado'] as bool?) ?? false,
       ultimaConexion: data?['ultimaConexion'] as Timestamp?,
+      posicion: data?['posicion'] as GeoPoint?,
+      fechaPosicion: data?['fechaPosicion'] as Timestamp?,
     );
   }
 
@@ -130,6 +140,8 @@ class Perfil {
       "primerLogin": primerLogin,
       "conectado": conectado,
       if (ultimaConexion != null) "ultimaConexion": ultimaConexion,
+      if (posicion != null) "posicion": posicion,
+      if (fechaPosicion != null) "fechaPosicion": fechaPosicion,
     };
   }
 

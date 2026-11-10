@@ -6,11 +6,13 @@ import 'package:flutter/material.dart';
 
 import '../admins/device_admin.dart';
 import '../admins/firebase_admin.dart';
+import '../admins/location_admin.dart';
 import '../admins/storage_admin.dart';
 import '../fb_objects/conversacion.dart';
 import '../fb_objects/mensaje.dart';
 import '../fb_objects/perfil.dart';
 
+export '../admins/location_admin.dart';
 export '../fb_objects/conversacion.dart';
 export '../fb_objects/mensaje.dart';
 export '../fb_objects/perfil.dart';
@@ -28,6 +30,9 @@ class DataHolder {
 
   FirebaseAdmin? _firebaseAdmin;
   FirebaseAdmin get firebaseAdmin => _firebaseAdmin ??= FirebaseAdmin();
+
+  LocationAdmin? _locationAdmin;
+  LocationAdmin get locationAdmin => _locationAdmin ??= LocationAdmin();
 
   DeviceAdmin? deviceAdmin;
 
@@ -317,6 +322,9 @@ class DataHolder {
   /// Descarga el perfil del usuario en Firestore y actualiza los badges de mensajes
   Future<Perfil> descargarPerfil() async {
     perfilUsuario = await firebaseAdmin.descargarPerfil();
+    if (FirebaseAuth.instance.currentUser != null) {
+      perfilUsuario.conectado = true;
+    }
 
     int numNoLeido = 0;
     for (Mensaje m in perfilUsuario.mensajes) {
@@ -328,12 +336,44 @@ class DataHolder {
   }
 
   // ==========================================================================
+  // BLOQUE 5: ACTUALIZACIÓN DE POSICIÓN GEOGRÁFICA EN FIRESTORE
+  // ==========================================================================
+
+  /// Actualiza la posición geográfica del usuario actual en Firestore y memoria
+  Future<void> actualizarPosicionUsuario(GeoPoint nuevaPosicion) async {
+    final uid = perfilUsuario.uid.isNotEmpty
+        ? perfilUsuario.uid
+        : FirebaseAuth.instance.currentUser?.uid;
+
+    final ahora = Timestamp.now();
+    perfilUsuario.posicion = nuevaPosicion;
+    perfilUsuario.fechaPosicion = ahora;
+
+    if (uid != null && uid.isNotEmpty) {
+      try {
+        await db.collection("Perfiles").doc(uid).set({
+          "posicion": nuevaPosicion,
+          "fechaPosicion": ahora,
+        }, SetOptions(merge: true));
+        debugPrint(
+          "Ubicación guardada en Firestore para $uid: (${nuevaPosicion.latitude}, ${nuevaPosicion.longitude})",
+        );
+      } catch (e) {
+        debugPrint("Error guardando ubicación en Firestore: $e");
+        rethrow;
+      }
+    }
+  }
+
+  // ==========================================================================
   // GESTIÓN DE PRESENCIA Y ESTADO DE CONEXIÓN (Heartbeat / TTL)
   // ==========================================================================
   Timer? _heartbeatTimer;
 
-  /// Actualiza en Firestore la bandera 'conectado' y el timestamp 'ultimaConexion'.
+  /// Actualiza en Firestore la bandera 'conectado' y el timestamp 'ultimaConexion',
+  /// manteniendo siempre sincronizado el perfil en memoria local.
   Future<void> actualizarEstadoConexion(bool online) async {
+    _perfilUsuario?.conectado = online;
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null && uid.isNotEmpty) {
       try {

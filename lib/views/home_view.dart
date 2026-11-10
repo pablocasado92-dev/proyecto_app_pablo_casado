@@ -202,36 +202,76 @@ class _HomeViewState extends State<HomeView> {
                           ),
                         ],
                       ),
-                      if (perfilMemoria.edad != null) ...[
+                      if (perfilMemoria.edad != null ||
+                          perfilMemoria.posicion != null) ...[
                         const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColores.suave,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.cake_outlined,
-                                size: 14,
-                                color: AppColores.oscuro,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                '${perfilMemoria.edad} años',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppColores.oscuro,
-                                  fontWeight: FontWeight.w600,
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          alignment: WrapAlignment.center,
+                          children: [
+                            if (perfilMemoria.edad != null)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColores.suave,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.cake_outlined,
+                                      size: 14,
+                                      color: AppColores.oscuro,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      '${perfilMemoria.edad} años',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppColores.oscuro,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ],
-                          ),
+                            if (perfilMemoria.posicion != null)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColores.suave,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: AppColores.divisor),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.location_on_rounded,
+                                      size: 14,
+                                      color: AppColores.principal,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      '${perfilMemoria.posicion!.latitude.toStringAsFixed(2)}°, ${perfilMemoria.posicion!.longitude.toStringAsFixed(2)}°',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppColores.principal,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
                         ),
                       ],
                     ],

@@ -192,6 +192,9 @@ class _EditProfileViewState extends State<EditProfileView> {
         ? perfilActual.edad
         : null;
     bool primerLogin = perfilActual.primerLogin;
+    GeoPoint? currentPosicion = perfilActual.posicion;
+    Timestamp? currentFechaPosicion = perfilActual.fechaPosicion;
+    bool isLocating = false;
     bool isSavingModal = false;
 
     showModalBottomSheet(
@@ -509,6 +512,169 @@ class _EditProfileViewState extends State<EditProfileView> {
                           ],
                         ),
                       ),
+                      const SizedBox(height: 12),
+
+                      // BLOQUE 5: Bloque de Geolocalización (Dónde estoy)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColores.suave,
+                          borderRadius: BorderRadius.circular(AppRadios.campo),
+                          border: Border.all(
+                            color: AppColores.divisor,
+                            width: 1,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.location_on_rounded,
+                                  color: AppColores.principal,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                const Expanded(
+                                  child: Text(
+                                    'Ubicación actual (GPS)',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColores.oscuro,
+                                    ),
+                                  ),
+                                ),
+                                if (currentPosicion != null)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green.shade100,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: const Text(
+                                      'Guardada',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.green,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            if (currentPosicion != null)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 8.0),
+                                child: Text(
+                                  'Lat: ${currentPosicion!.latitude.toStringAsFixed(5)}, '
+                                  'Lng: ${currentPosicion!.longitude.toStringAsFixed(5)}'
+                                  '${currentFechaPosicion != null ? ' (${currentFechaPosicion!.toDate().hour.toString().padLeft(2, '0')}:${currentFechaPosicion!.toDate().minute.toString().padLeft(2, '0')})' : ''}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppColores.texto,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              )
+                            else
+                              const Padding(
+                                padding: EdgeInsets.only(bottom: 8.0),
+                                child: Text(
+                                  'Sin ubicación registrada. Pulsa para capturar tus coordenadas actuales.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColores.textoSecundario,
+                                  ),
+                                ),
+                              ),
+                            OutlinedButton.icon(
+                              onPressed: (isSavingModal || isLocating)
+                                  ? null
+                                  : () async {
+                                      setModalState(() {
+                                        isLocating = true;
+                                      });
+
+                                      final resultado = await DataHolder
+                                          .instance
+                                          .locationAdmin
+                                          .obtenerPosicionActual();
+
+                                      setModalState(() {
+                                        isLocating = false;
+                                        if (resultado.isSuccess &&
+                                            resultado.geoPoint != null) {
+                                          currentPosicion = resultado.geoPoint;
+                                          currentFechaPosicion =
+                                              Timestamp.now();
+                                        }
+                                      });
+
+                                      if (!modalContext.mounted) return;
+
+                                      if (resultado.isSuccess) {
+                                        ScaffoldMessenger.of(modalContext)
+                                            .showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Ubicación GPS obtenida con éxito.',
+                                                ),
+                                                backgroundColor: Colors.green,
+                                              ),
+                                            );
+                                      } else {
+                                        ScaffoldMessenger.of(modalContext)
+                                            .showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  resultado.mensaje ?? 'No se pudo obtener la ubicación.',
+                                                ),
+                                                backgroundColor: Colors.red,
+                                              ),
+                                            );
+                                      }
+                                    },
+                              icon: isLocating
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: AppColores.principal,
+                                      ),
+                                    )
+                                  : const Icon(
+                                      Icons.my_location_rounded,
+                                      size: 16,
+                                    ),
+                              label: Text(
+                                isLocating
+                                    ? 'Obteniendo GPS...'
+                                    : (currentPosicion == null
+                                          ? 'Capturar ubicación actual'
+                                          : 'Actualizar ubicación'),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColores.oscuro,
+                                side: const BorderSide(
+                                  color: AppColores.principal,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(
+                                    AppRadios.campo,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       const SizedBox(height: 20),
 
                       // Botón: Guardar Cambios
@@ -549,6 +715,10 @@ class _EditProfileViewState extends State<EditProfileView> {
                                     perfilMemoria.edad = selectedEdad;
                                     perfilMemoria.urlAvatar = currentAvatarUrl;
                                     perfilMemoria.primerLogin = primerLogin;
+                                    perfilMemoria.posicion = currentPosicion;
+                                    perfilMemoria.fechaPosicion =
+                                        currentFechaPosicion;
+                                    perfilMemoria.conectado = true; // El usuario está activo e interactuando en la app
 
                                     // Guardado en Firestore con .withConverter<Perfil>
                                     await FirebaseFirestore.instance

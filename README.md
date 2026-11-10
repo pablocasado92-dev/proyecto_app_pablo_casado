@@ -291,3 +291,111 @@ Una vez obtenida la huella (ejemplo: `AA:BB:CC:...:11:22`):
 3. En el apartado **Huellas digitales de certificados SHA**, pulsa en **Añadir huella digital** y pega tu SHA-1.
 4. Vuelve a descargar el archivo `google-services.json` actualizado y colócalo en `android/app/google-services.json`.
 
+---
+
+## 📍 8. Fase 1b — Bloque 5: Dónde estoy (Geolocalización)
+
+En este bloque se implementa el subsistema de geolocalización del usuario siguiendo las especificaciones académicas de la Fase 1b (`Fase1b_Fotos_posicion_y_consultas.pdf`). La funcionalidad permite obtener las coordenadas geográficas del dispositivo en tiempo real, almacenarlas de forma tipada en Firestore y presentarlas tanto en la tarjeta del perfil (`HomeView`) como en el modal de edición (`EditProfileView`).
+
+### 8.1. Arquitectura y Componentes Implementados
+
+```text
+               ┌────────────────────────────────────────────────────────┐
+               │         EditProfileView / HomeView (UI)                │
+               └──────────────────────────┬─────────────────────────────┘
+                                          │ solicita ubicación
+                                          ▼
+               ┌────────────────────────────────────────────────────────┐
+               │    DataHolder.instance.obtenerPosicionActual()         │
+               └──────────────────────────┬─────────────────────────────┘
+                                          │ delega en
+                                          ▼
+               ┌────────────────────────────────────────────────────────┐
+               │      LocationAdmin (Servicio Resiliente)               │
+               │   - Chequeo de servicio GPS activo                     │
+               │   - Solicitud de permisos Just-in-Time                 │
+               │   - Timeout controlado de 10s (sin congelar UI)        │
+               └──────────────────────────┬─────────────────────────────┘
+                                          │ emite LocationResult
+                                          ▼
+┌─────────────────────────────────────────┴──────────────────────────────────────────┐
+│  STATUS OK                                                STATUS ERROR             │
+│  - GeoPoint(lat, lng)                                     - gpsDesactivado         │
+│  - Guardado en Perfil Firestore                           - permisoDenegado        │
+│  - Timestamp(fechaPosicion)                               - timeout (10s)          │
+└────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+1. **Servicio Resiliente (`lib/admins/location_admin.dart`)**:
+   - Encapsula el paquete oficial `geolocator: ^13.0.2`.
+   - Modela las respuestas a través de la clase tipada `LocationResult` con el enum `LocationResultStatus` (`exito`, `gpsDesactivado`, `permisoDenegado`, `permisoDenegadoPermanente`, `timeout`, `errorGeneral`).
+   - Aplica un **timeout estricto de 10 segundos** (`LocationSettings(timeLimit: Duration(seconds: 10))`) para evitar bloqueos de la UI en interiores o zonas sin cobertura satelital.
+2. **Modelo Firestore Tipado (`lib/fb_objects/perfil.dart`)**:
+   - Campos `posicion` (`GeoPoint?`) y `fechaPosicion` (`Timestamp?`).
+   - Integrados en `toFirestore()` y `fromFirestore()`, permitiendo queries geoespaciales y almacenamiento nativo de alta precisión con `.withConverter<Perfil>`.
+3. **Persistencia y Estado Global (`lib/data/data_holder.dart`)**:
+   - Método `actualizarPosicionUsuario(GeoPoint posicion)` que persiste inmediatamente en Firestore y sincroniza la instancia en memoria `perfilUsuario`.
+4. **Permisos y Manifiesto de Android (`android/app/src/main/AndroidManifest.xml`)**:
+   - Declarados `ACCESS_FINE_LOCATION` (GPS satelital) y `ACCESS_COARSE_LOCATION` (red celular/Wi-Fi).
+   - Características de hardware marcadas como opcionales (`android.hardware.location.gps` y `android.hardware.location.network` con `required="false"`) para compatibilidad universal con dispositivos o tabletas sin chip GPS dedicado.
+
+---
+
+### 8.2. Comparativa Técnica: Tecnologías de Posicionamiento en Dispositivos Móviles
+
+A continuación se detalla la comparativa técnica entre las tres tecnologías fundamentales de localización disponibles en Android y dispositivos móviles modernos:
+
+#### 1. GPS (Global Positioning System / GNSS)
+* **Principio de Funcionamiento**: El dispositivo móvil cuenta con un receptor de radiofrecuencia que capta las señales de tiempo y efemérides emitidas por constelaciones de satélites en órbita (GPS estadounidense, Galileo europeo, GLONASS ruso o BeiDou chino). Mediante trilateración de al menos 4 satélites visibles, el receptor calcula latitud, longitud, altitud y tiempo.
+* **Precisión**: Es la tecnología de **mayor precisión métrica absoluta**, típicamente entre **1 y 5 metros** en condiciones de cielo despejado al aire libre.
+* **Consumo de Batería**: **Muy elevado**. Mantener el chip GNSS activo requiere amplificar señales débiles de microondas y realizar constantes cálculos matemáticos de correlación y reloj, lo que agota la batería con rapidez si se usa de forma continua.
+* **Limitaciones**: Sufre de "Time-To-First-Fix" (TTFF) elevado en frío (hasta 30-60 segundos) y es ineficaz en interiores de edificios, túneles o cañones urbanos densos debido al bloqueo físico de señales y rebotes multipath.
+* **Casos de Uso Ideales**: Navegación giro a giro en carretera (Google Maps, Waze), aplicaciones de entrenamiento deportivo outdoor (Strava) y topografía de campo.
+
+#### 2. Red Móvil y Wi-Fi (Cell Towers & Wi-Fi Triangulation)
+* **Principio de Funcionamiento**: Utiliza bases de datos mundiales de antenas de telefonía móvil (Cell ID) y puntos de acceso Wi-Fi (BSSID / MAC). El dispositivo escanea los identificadores de radio y la intensidad de señal (RSSI) que percibe a su alrededor y consulta una base de datos local o en la nube para estimar su posición geográfica por triangulación y proximidad.
+* **Precisión**: Media a baja. En entornos urbanos con alta densidad de antenas y redes Wi-Fi oscila entre **20 y 100 metros**. En áreas rurales sin Wi-Fi y con antenas de telefonía distantes, la precisión puede degradarse entre **500 metros y varios kilómetros**.
+* **Consumo de Batería**: **Muy bajo / Casi despreciable**. El teléfono ya mantiene activas las radios celular y Wi-Fi para su conectividad ordinaria de datos, por lo que no se requiere encender ningún hardware adicional.
+* **Ventajas**: Funciona de forma excelente en interiores de centros comerciales, oficinas y subterráneos, y la fijación de la posición es prácticamente instantánea (<1 segundo).
+* **Casos de Uso Ideales**: Detección de ciudad para previsión meteorológica, adaptación de zona horaria e idioma, y etiquetado geotécnico aproximado cuando se prioriza la autonomía del dispositivo.
+
+#### 3. Proveedor Combinado (Fused Location Provider - Google Play Services)
+* **Principio de Funcionamiento**: Es una capa de abstracción algorítmica de software inteligente desarrollada por Google. Fusiona dinámicamente datos de múltiples sensores: satélites GNSS, antenas de telefonía, redes Wi-Fi, balizas Bluetooth de baja energía (BLE), acelerómetro, giroscopio y barómetro. Mediante filtrado de Kalman y reconocimiento de actividad (*Activity Recognition* — quieto, caminando, en coche, en bicicleta), adapta la fuente activa sin intervención manual del desarrollador.
+* **Precisión**: **Óptima y adaptativa**, típicamente entre **5 y 15 metros**. Si el usuario entra a un edificio, el proveedor cambia suavemente a Wi-Fi sin perder la señal; si sale al exterior y empieza a desplazarse rápido, activa el GPS de forma dosificada.
+* **Consumo de Batería**: **Equilibrado e inteligente**. Optimiza drásticamente el uso de energía respecto al GPS puro (ahorro estimado del 60% al 80%), evitando encender el chip GNSS si detecta que el usuario está estático en su escritorio.
+* **Casos de Uso Ideales**: Es el estándar recomendado por Google para la inmensa mayoría de aplicaciones modernas: redes sociales, perfiles de usuario (como el presente proyecto), geocercas (*geofencing*), aplicaciones de entrega a domicilio y seguimiento de flotas equilibrado.
+
+#### 📊 Tabla Comparativa Resumen
+
+| Criterio / Parámetro | GPS Puro (GNSS) | Red (Antenas / Wi-Fi) | Proveedor Combinado (Fused Location) |
+| :--- | :--- | :--- | :--- |
+| **Precisión Típica** | 1 a 5 metros | 20 a 500+ metros | 5 a 15 metros (adaptativa) |
+| **Consumo de Batería** | Muy alto (drena la batería) | Mínimo (reutiliza señales) | Equilibrado / Optimizado |
+| **Tiempo de Respuesta (TTFF)** | Lento (15 - 45 segundos en frío) | Casi instantáneo (< 1 seg) | Rápido (< 2 segundos) |
+| **Rendimiento en Interiores** | Muy deficiente o nulo | Excelente | Excelente (transición transparente) |
+| **Dependencia de Hardware** | Requiere chip GNSS y vista al cielo | Requiere módulo de radio móvil/Wi-Fi | Requiere Google Play Services (en Android) |
+| **Uso en este Proyecto** | Soportado para precisión fina | Soportado para modo ahorro | **Recomendado por defecto** mediante `geolocator` |
+
+---
+
+### 8.3. Guía de Prueba y Verificación del Bloque 5
+
+#### Prueba en el Emulador de Android Studio:
+1. Con el emulador Android en marcha, abre la barra de herramientas lateral del emulador y pulsa en los tres puntos (`...` - *Extended Controls*).
+2. En la ventana emergente, selecciona la pestaña **Location**.
+3. En los campos de coordenadas, introduce una ubicación de prueba (por ejemplo, Madrid: `Latitude: 40.4168`, `Longitude: -3.7038`).
+4. Haz clic en el botón **Send** situado en la esquina inferior derecha para inyectar la posición mock en el sistema del emulador.
+5. En la aplicación:
+   * Pulsa en tu tarjeta de perfil en `HomeView` o accede a **Editar Perfil**.
+   * Pulsa el botón **"Obtener mi ubicación actual"**.
+   * Concede el permiso de ubicación en el diálogo nativo de Android ("Mientras la app esté en uso").
+   * Verifica que se muestran los chips de latitud (`40.4168°`) y longitud (`-3.7038°`) con el estado "Ubicación actualizada con éxito".
+   * Pulsa **"Guardar Cambios"** y comprueba que en `HomeView` aparece el badge con las coordenadas.
+
+#### Prueba de Resiliencia ante Fallos (GPS Apagado):
+1. Desliza hacia abajo la barra de notificaciones del emulador para abrir los ajustes rápidos de Android.
+2. Desactiva el interruptor **Ubicación (Location)**.
+3. En la aplicación, pulsa **"Obtener mi ubicación actual"**.
+4. **Resultado Verificado**: La aplicación no se congela ni genera excepciones no controladas. Muestra un aviso en tono ámbar informando que el servicio de GPS está desactivado y solicita amablemente su activación.
+
+
