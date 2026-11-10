@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -182,8 +184,11 @@ class _EditProfileViewState extends State<EditProfileView> {
     final formKey = GlobalKey<FormState>();
     final nameController = TextEditingController(text: perfilActual.name ?? '');
     String currentAvatarUrl = perfilActual.urlAvatar ?? '';
+    String? currentAvatarBase64 = perfilActual.avatarBase64;
     XFile? nuevaImagenSeleccionada;
     Uint8List? previewBytes;
+    String estadoIsolate = '';
+    bool isProcessingIsolate = false;
     // Rango de edad permitido: 16 a 99 años. Si el valor actual está fuera, ajustar a null.
     int? selectedEdad =
         (perfilActual.edad != null &&
@@ -209,7 +214,7 @@ class _EditProfileViewState extends State<EditProfileView> {
       builder: (modalContext) {
         return StatefulBuilder(
           builder: (ctx, setModalState) {
-            // Función auxiliar para seleccionar imagen desde Cámara o Galería
+            // Función auxiliar para seleccionar imagen desde Cámara o Galería con procesamiento en Isolate
             Future<void> seleccionarImagen(ImageSource source) async {
               Navigator.pop(ctx); // Cierra el selector de origen
               try {
@@ -222,13 +227,36 @@ class _EditProfileViewState extends State<EditProfileView> {
                 );
 
                 if (picked != null) {
-                  final bytes = await picked.readAsBytes();
+                  setModalState(() {
+                    isProcessingIsolate = true;
+                    estadoIsolate = 'Preparando imagen...';
+                  });
+
+                  // PSP RA2.c / RA2.e: Compresión asíncrona en ISOLATE comunicando progreso
+                  final procesada = await DataHolder.instance.storageAdmin
+                      .procesarYComprimirEnIsolate(
+                        picked,
+                        onProgreso: (msg) {
+                          setModalState(() {
+                            estadoIsolate = msg;
+                          });
+                        },
+                      );
+
                   setModalState(() {
                     nuevaImagenSeleccionada = picked;
-                    previewBytes = bytes;
+                    previewBytes = procesada.bytesComprimidos;
+                    currentAvatarBase64 = procesada.base64String;
+                    isProcessingIsolate = false;
+                    estadoIsolate =
+                        'Comprimido con éxito (${procesada.tamanoKb.toStringAsFixed(1)} KB en Isolate)';
                   });
                 }
               } catch (e) {
+                setModalState(() {
+                  isProcessingIsolate = false;
+                  estadoIsolate = '';
+                });
                 debugPrint("Error al seleccionar imagen: $e");
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -350,10 +378,15 @@ class _EditProfileViewState extends State<EditProfileView> {
                               backgroundColor: AppColores.suave,
                               backgroundImage: previewBytes != null
                                   ? MemoryImage(previewBytes!)
-                                  : (currentAvatarUrl.isNotEmpty
-                                        ? NetworkImage(currentAvatarUrl)
-                                              as ImageProvider
-                                        : null),
+                                  : (currentAvatarBase64 != null &&
+                                            currentAvatarBase64!.isNotEmpty
+                                        ? MemoryImage(
+                                            base64Decode(currentAvatarBase64!),
+                                          )
+                                        : (currentAvatarUrl.isNotEmpty
+                                              ? NetworkImage(currentAvatarUrl)
+                                                    as ImageProvider
+                                              : null)),
                               onBackgroundImageError:
                                   currentAvatarUrl.isNotEmpty
                                   ? (exception, stackTrace) {
@@ -362,6 +395,8 @@ class _EditProfileViewState extends State<EditProfileView> {
                                   : null,
                               child:
                                   (previewBytes == null &&
+                                      (currentAvatarBase64 == null ||
+                                          currentAvatarBase64!.isEmpty) &&
                                       currentAvatarUrl.isEmpty)
                                   ? const Icon(
                                       Icons.person,
@@ -376,7 +411,7 @@ class _EditProfileViewState extends State<EditProfileView> {
                               elevation: 2,
                               child: InkWell(
                                 customBorder: const CircleBorder(),
-                                onTap: isSavingModal
+                                onTap: (isSavingModal || isProcessingIsolate)
                                     ? null
                                     : mostrarOpcionesOrigen,
                                 child: const Padding(
@@ -392,10 +427,46 @@ class _EditProfileViewState extends State<EditProfileView> {
                           ],
                         ),
                       ),
+                      if (isProcessingIsolate || estadoIsolate.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColores.suave,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColores.divisor),
+                          ),
+                          child: Column(
+                            children: [
+                              if (isProcessingIsolate) ...[
+                                const LinearProgressIndicator(
+                                  backgroundColor: AppColores.suave,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    AppColores.principal,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                              ],
+                              Text(
+                                estadoIsolate,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColores.oscuro,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 6),
                       Center(
                         child: TextButton.icon(
-                          onPressed: isSavingModal
+                          onPressed: (isSavingModal || isProcessingIsolate)
                               ? null
                               : mostrarOpcionesOrigen,
                           icon: const Icon(
@@ -714,6 +785,8 @@ class _EditProfileViewState extends State<EditProfileView> {
                                     perfilMemoria.name = nuevoNombre;
                                     perfilMemoria.edad = selectedEdad;
                                     perfilMemoria.urlAvatar = currentAvatarUrl;
+                                    perfilMemoria.avatarBase64 =
+                                        currentAvatarBase64;
                                     perfilMemoria.primerLogin = primerLogin;
                                     perfilMemoria.posicion = currentPosicion;
                                     perfilMemoria.fechaPosicion =
@@ -1029,6 +1102,7 @@ class _EditProfileViewState extends State<EditProfileView> {
                                 ? perfil.name!
                                 : (perfil.email ?? 'Contacto');
                             final String? avatarUrl = perfil.urlAvatar;
+                            final String? avatarBase64 = perfil.avatarBase64;
 
                             return Card(
                               elevation: 2,
@@ -1114,15 +1188,21 @@ class _EditProfileViewState extends State<EditProfileView> {
                                       ],
                                     ),
 
-                                    // Avatar del contacto
+                                    // Avatar del contacto: Prioridad a miniatura Base64 instantánea
                                     CircleAvatar(
                                       radius: 34,
                                       backgroundColor: AppColores.suave,
                                       backgroundImage:
-                                          (avatarUrl != null &&
-                                              avatarUrl.isNotEmpty)
-                                          ? NetworkImage(avatarUrl)
-                                          : null,
+                                          (avatarBase64 != null &&
+                                              avatarBase64.isNotEmpty)
+                                          ? MemoryImage(
+                                              base64Decode(avatarBase64),
+                                            )
+                                          : ((avatarUrl != null &&
+                                                    avatarUrl.isNotEmpty)
+                                                ? NetworkImage(avatarUrl)
+                                                      as ImageProvider
+                                                : null),
                                       onBackgroundImageError:
                                           (avatarUrl != null &&
                                               avatarUrl.isNotEmpty)
@@ -1133,8 +1213,10 @@ class _EditProfileViewState extends State<EditProfileView> {
                                             }
                                           : null,
                                       child:
-                                          (avatarUrl == null ||
-                                              avatarUrl.isEmpty)
+                                          ((avatarBase64 == null ||
+                                                  avatarBase64.isEmpty) &&
+                                              (avatarUrl == null ||
+                                                  avatarUrl.isEmpty))
                                           ? const Icon(
                                               Icons.person_rounded,
                                               size: 34,

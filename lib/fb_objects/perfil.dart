@@ -32,6 +32,9 @@ class Perfil {
   /// URL de descarga del avatar en Firebase Storage (opcional / null).
   String? urlAvatar;
 
+  /// BLOQUE 4: Miniatura de la foto de perfil en Base64 (<300 KB) guardada en el propio documento de Firestore
+  String? avatarBase64;
+
   /// Fecha y hora de creación de la cuenta/perfil.
   Timestamp? fechaRegistro;
 
@@ -73,6 +76,7 @@ class Perfil {
     this.edad,
     this.email,
     this.urlAvatar,
+    this.avatarBase64,
     this.fechaRegistro,
     this.primerLogin = true,
     this.conectado = false,
@@ -120,6 +124,7 @@ class Perfil {
       edad: (data?['edad'] as num?)?.toInt(),
       email: data?['email'] as String?,
       urlAvatar: data?['urlAvatar'] as String?,
+      avatarBase64: data?['avatarBase64'] as String?,
       fechaRegistro: data?['fechaRegistro'] as Timestamp?,
       primerLogin: (data?['primerLogin'] as bool?) ?? true,
       conectado: (data?['conectado'] as bool?) ?? false,
@@ -136,6 +141,7 @@ class Perfil {
       if (edad != null) "edad": edad,
       if (email != null) "email": email,
       "urlAvatar": urlAvatar,
+      if (avatarBase64 != null) "avatarBase64": avatarBase64,
       if (fechaRegistro != null) "fechaRegistro": fechaRegistro,
       "primerLogin": primerLogin,
       "conectado": conectado,

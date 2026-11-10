@@ -398,4 +398,64 @@ A continuación se detalla la comparativa técnica entre las tres tecnologías f
 3. En la aplicación, pulsa **"Obtener mi ubicación actual"**.
 4. **Resultado Verificado**: La aplicación no se congela ni genera excepciones no controladas. Muestra un aviso en tono ámbar informando que el servicio de GPS está desactivado y solicita amablemente su activación.
 
+---
+
+## 📸 9. Fase 1b — Bloque 4: Cámara/Galería, Compresión en Isolate y Miniatura Base64
+
+En este bloque se da respuesta a los criterios de evaluación de **0490 PSP** (concurrencia y programación multihilo), **0486 AD** (persistencia optimizada en base de datos documental) y **0489 PMDM** (manejo de sensores y contenidos multimedia).
+
+### 9.1. Concurrencia y Hilos: ¿Qué va a un Isolate y qué no? (0490 PSP RA2.a, RA2.c, RA2.e)
+
+En Flutter/Dart, todo el código se ejecuta por defecto en un único hilo denominado **UI Thread** (Event Loop principal). Si se ejecutan operaciones intensivas de CPU en este hilo (como decodificar matrices de píxeles, interpolar imágenes de alta resolución o comprimir a formato JPEG), el hilo se satura y no puede renderizar los fotogramas a 60 o 120 cuadros por segundo, provocando caídas de frames (*jank*) o congelando completamente la pantalla del usuario.
+
+```text
+  [Hilo Principal / UI Thread]                [Hilo Secundario / Isolate (PSP)]
+   - Dibuja la UI a 60/120 fps                  - Memoria aislada independiente
+   - Atiende toques y scroll del usuario        - Carga pesada de CPU (compresión JPEG)
+   - Muestra LinearProgressIndicator            - Escala píxeles a máx 800x800
+         │                                              │
+         ├─── Lanza compute(_procesarBytesEnIsolate) ──►│
+         │                                              ├── Procesa bytes crudos
+         │◄── Comunica progreso y resultado tipado ─────┤   (bytes < 300 KB y Base64)
+         │
+   - Desactiva indicador de progreso
+   - Renderiza vista previa al instante
+```
+
+#### Análisis Técnico de Decisiones de Concurrencia:
+1. **Qué se delega a un Isolate (`compute` / `Isolate.run`)**:
+   - **Compresión y remuestreo de imágenes**: Redimensionar una fotografía capturada por una cámara moderna (que puede tener 12 MP o 64 MP y pesar más de 10 MB) a una miniatura de 800x800 píxeles a calidad controlada exige millones de cálculos matemáticos. Esta tarea se ejecuta íntegramente en un **Isolate secundario**, comunicando el progreso a la interfaz y asegurando que el usuario pueda desplazarse por el formulario o mover la pantalla sin ningún tipo de bloqueo.
+2. **Qué NO se delega a un Isolate (y por qué)**:
+   - **Llamadas I/O asíncronas de red a Firebase Storage y Firestore**: Las operaciones de red y subida de archivos no son intensivas en CPU, sino asíncronas basadas en descriptores de socket del sistema operativo (`Future` / `Stream`). Delegarlas a un isolate añadiría una sobrecarga innecesaria de serialización de memoria entre hilos (*overhead*) sin aportar ningún beneficio de fluidez.
+   - **Manipulaciones de estado sencillas**: Actualizaciones de variables locales o controladores de texto se gestionan eficientemente en el Event Loop ordinario.
+
+---
+
+### 9.2. Persistencia en Cloud Firestore: Límite de 1 MB y Miniatura Base64 (0486 AD RA4.d)
+
+#### Límite Estricto de Cloud Firestore:
+Cada documento individual dentro de Cloud Firestore tiene un **límite máximo de tamaño de 1.048.576 bytes (1 MiB)**. Si una aplicación intenta persistir una imagen cruda sin comprimir dentro de un documento Firestore:
+1. La petición será rechazada por el backend con un error `RESOURCE_EXHAUSTED` o `INVALID_ARGUMENT`.
+2. Las lecturas de ese documento consumirían todo el ancho de banda del cliente, encareciendo los costes de cuota y ralentizando la carga de listas y cuadrículas.
+
+#### Estrategia Híbrida Implementada:
+1. **Imagen Principal en Firebase Storage**: El archivo binario de resolución media se almacena en `usuarios/{uid}/imagenes/avatar.jpg`, accesible mediante `urlAvatar`.
+2. **Miniatura Base64 en el Documento Firestore**: La imagen se comprime en el isolate garantizando un peso **estrictamente inferior a 300 KB** (típicamente entre 30 KB y 90 KB), se codifica en texto plano `base64` y se persiste en el campo `avatarBase64` del documento `Perfiles/{uid}`.
+3. **Ventaja de Rendimiento UX**: La aplicación prioriza renderizar la miniatura `avatarBase64` de forma instantánea (`MemoryImage`) al leer el perfil, eliminando cualquier parpadeo de carga o tiempo de espera de red hacia servidores externos.
+
+---
+
+### 9.3. Guía de Prueba y Verificación del Bloque 4
+
+1. Abre la pantalla de **Editar Perfil** pulsando sobre la tarjeta o el botón de edición.
+2. Pulsa en el icono de cámara sobre el avatar y selecciona una imagen de prueba desde la **Galería** o tómala con la **Cámara**.
+3. **Comprobación de no congelamiento**:
+   - Observa cómo aparece la barra de progreso `LinearProgressIndicator` con el mensaje descriptivo *"Comprimiendo imagen en hilo secundario (Isolate)..."*.
+   - Mientras dura la compresión, desplaza la pantalla arriba y abajo: la interfaz responde con suavidad y fluidez sin tirones.
+4. Al terminar el isolate, se muestra el mensaje de éxito indicando el tamaño obtenido en KB (siempre inferior a 300 KB).
+5. Pulsa **"Guardar Cambios"**:
+   - Se actualizan simultáneamente `urlAvatar` (Storage) y `avatarBase64` (Firestore).
+   - En `HomeView` y en `EditProfileView` el avatar se muestra de forma inmediata a partir de los bytes en memoria.
+
+
 

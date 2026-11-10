@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -83,6 +85,7 @@ class _HomeViewState extends State<HomeView> {
         : (firebaseUser?.displayName ?? 'Usuario');
 
     final String? avatarUrl = perfilMemoria.urlAvatar;
+    final String? avatarBase64 = perfilMemoria.avatarBase64;
 
     return Scaffold(
       appBar: AppBar(
@@ -137,7 +140,7 @@ class _HomeViewState extends State<HomeView> {
                   padding: const EdgeInsets.all(20.0),
                   child: Column(
                     children: [
-                      // Avatar con borde exterior suave
+                      // Avatar con borde exterior suave (Prioridad a Base64 instantáneo con fallback a Storage)
                       Container(
                         padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
@@ -151,9 +154,11 @@ class _HomeViewState extends State<HomeView> {
                           radius: 46,
                           backgroundColor: AppColores.suave,
                           backgroundImage:
-                              (avatarUrl != null && avatarUrl.isNotEmpty)
-                              ? NetworkImage(avatarUrl)
-                              : null,
+                              (avatarBase64 != null && avatarBase64.isNotEmpty)
+                              ? MemoryImage(base64Decode(avatarBase64))
+                              : ((avatarUrl != null && avatarUrl.isNotEmpty)
+                                    ? NetworkImage(avatarUrl) as ImageProvider
+                                    : null),
                           onBackgroundImageError:
                               (avatarUrl != null && avatarUrl.isNotEmpty)
                               ? (exception, stackTrace) {
@@ -162,7 +167,9 @@ class _HomeViewState extends State<HomeView> {
                                   );
                                 }
                               : null,
-                          child: (avatarUrl == null || avatarUrl.isEmpty)
+                          child:
+                              ((avatarBase64 == null || avatarBase64.isEmpty) &&
+                                  (avatarUrl == null || avatarUrl.isEmpty))
                               ? const Icon(
                                   Icons.person_rounded,
                                   size: 48,
