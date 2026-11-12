@@ -149,6 +149,65 @@ class _ChatScreenState extends State<ChatScreen> {
     return '$h:$m';
   }
 
+  /// BLOQUE 3 (0486 RA4.f): Borrar documentos propios con confirmación modal
+  /// y control de errores si la operación en Firestore falla.
+  void _confirmarEliminarMensaje(Mensaje mensaje) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
+            SizedBox(width: 8),
+            Text('Eliminar mensaje'),
+          ],
+        ),
+        content: const Text(
+          '¿Estás seguro de que deseas eliminar este mensaje de la conversación? Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                if (mensaje.uid != null && mensaje.uid!.isNotEmpty) {
+                  await FirebaseFirestore.instance
+                      .collection("Mensajes")
+                      .doc(mensaje.uid)
+                      .delete();
+
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Mensaje eliminado correctamente'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error al eliminar mensaje: $e'),
+                      backgroundColor: Colors.redAccent,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildChatBubble(Mensaje mensaje, bool esMio) {
     final colorBurbuja = esMio ? AppColores.principal : AppColores.suave;
     final colorTexto = esMio ? Colors.white : AppColores.texto;
@@ -167,35 +226,56 @@ class _ChatScreenState extends State<ChatScreen> {
       child: Column(
         crossAxisAlignment: alineacion,
         children: [
-          Material(
-            elevation: 1,
-            color: colorBurbuja,
-            borderRadius: bordes,
-            child: Container(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.75,
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  SelectableText(
-                    mensaje.cuerpo ?? '',
-                    style: TextStyle(
-                      color: colorTexto,
-                      fontSize: 15,
-                      height: 1.3,
+          GestureDetector(
+            onLongPress: esMio
+                ? () => _confirmarEliminarMensaje(mensaje)
+                : null,
+            child: Material(
+              elevation: 1,
+              color: colorBurbuja,
+              borderRadius: bordes,
+              child: Container(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.75,
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    SelectableText(
+                      mensaje.cuerpo ?? '',
+                      style: TextStyle(
+                        color: colorTexto,
+                        fontSize: 15,
+                        height: 1.3,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _formatearHora(mensaje.fecha),
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: esMio ? Colors.white70 : Colors.black45,
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (esMio) ...[
+                          const Icon(
+                            Icons.delete_outline_rounded,
+                            size: 11,
+                            color: Colors.white54,
+                          ),
+                          const SizedBox(width: 4),
+                        ],
+                        Text(
+                          _formatearHora(mensaje.fecha),
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: esMio ? Colors.white70 : Colors.black45,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

@@ -21,7 +21,7 @@ class _ConversacionesViewState extends State<ConversacionesView> {
   @override
   void initState() {
     super.initState();
-    DataHolder.instance.iBotBarIndex = 2;
+    DataHolder.instance.iBotBarIndex = 3;
     DataHolder.instance.sMessagesBadgeText = "";
     _inicializarConversaciones();
   }

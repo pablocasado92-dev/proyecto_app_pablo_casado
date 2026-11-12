@@ -46,6 +46,9 @@ class _InsBotBarStyle1State extends State<InsBotBarStyle1> {
         Navigator.popAndPushNamed(context, "/edit_profile");
         break;
       case 2:
+        Navigator.popAndPushNamed(context, "/mapa");
+        break;
+      case 3:
         Navigator.popAndPushNamed(context, "/conversaciones");
         break;
     }
@@ -71,6 +74,11 @@ class _InsBotBarStyle1State extends State<InsBotBarStyle1> {
           selectedIcon: Icon(Icons.people_rounded),
           icon: Icon(Icons.people_outline_rounded),
           label: 'Perfiles',
+        ),
+        const NavigationDestination(
+          selectedIcon: Icon(Icons.map_rounded),
+          icon: Icon(Icons.map_outlined),
+          label: 'Mapa',
         ),
         NavigationDestination(
           selectedIcon: Badge(

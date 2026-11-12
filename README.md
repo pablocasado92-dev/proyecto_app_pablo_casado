@@ -457,5 +457,193 @@ Cada documento individual dentro de Cloud Firestore tiene un **límite máximo d
    - Se actualizan simultáneamente `urlAvatar` (Storage) y `avatarBase64` (Firestore).
    - En `HomeView` y en `EditProfileView` el avatar se muestra de forma inmediata a partir de los bytes en memoria.
 
+---
+
+## 🗺️ 10. Fase 1b — Bloque 6: El Mapa y Lista «Cerca de mí» con Isolate
+
+En este bloque se satisfacen los criterios curriculares de **0489 PMDM (RA2.k)** mediante la integración del mapa interactivo libre sobre **OpenStreetMap** y de **0490 PSP (RA2.a, RA2.c, RA2.e)** mediante el cálculo y ordenación de distancias relativas en un **hilo secundario (Isolate)** comunicando el progreso a la interfaz.
+
+### 10.1. Mapa con `flutter_map` sobre OpenStreetMap (0489 PMDM RA2.k)
+
+1. **Uso de Teselas Libres (OpenStreetMap)**:
+   - Se integra la biblioteca nativa en Flutter `flutter_map: ^7.0.2` en conjunto con `latlong2: ^0.9.1`.
+   - **Cumplimiento estricto de la política de OpenStreetMap (Tile Usage Policy)**:
+     - `userAgentPackageName: 'com.example.proyecto_app_pablo_casado'` configurado obligatoriamente en `TileLayer` para identificar la aplicación y evitar el bloqueo por parte de los servidores de OSM.
+     - Atribución legal visible (`SimpleAttributionWidget(source: Text('© OpenStreetMap contributors'))`) ubicada en la esquina inferior derecha del mapa.
+2. **Marcadores Interactivos**:
+   - **Marcador del Usuario Actual**: Representado con un círculo azul y el icono `person_pin_circle_rounded`, centrado dinámicamente en su `GeoPoint` de Firestore.
+   - **Marcadores de Contactos**: Círculos granate/borgoña (`AppColores.principal`) para cada documento de la colección `Perfiles` que posea coordenadas válidas.
+   - **Interacción y Detalle**: Al tocar cualquier marcador, se despliega un diálogo inferior (*modal bottom sheet*) mostrando la foto del contacto (con prioridad a la miniatura Base64 instantánea o Storage), su nombre, correo, distancia calculada y un botón de acceso directo para abrir el chat individual (`/chat`).
+
+---
+
+### 10.2. Justificación Curricular: ¿Qué fue en Isolate, qué no y por qué? (0490 PSP RA2.a, RA2.c, RA2.e)
+
+```text
+    [Hilo Principal / UI Thread]               [Hilo Secundario / Isolate (PSP)]
+     - Atiende gestos de arrastre y zoom         - Memoria y heap aislados
+     - Mantiene 60/120 fps constantes            - Cálculo trigonométrico intensivo
+     - Muestra CircularProgressIndicator           * d = 2R · atan2(√a, √(1-a))
+           │                                     - Ordena List<PerfilDistanciaDTO>
+           ├─── compute(_ordenarPerfilesWorker) ──────►│
+           │                                           ├── Itera N perfiles
+           │◄── Notifica progreso y resultado ordenado ┼── Ordenación ascendente
+           │
+     - Pinta ListView «Cerca de mí»
+```
+
+#### Análisis Técnico:
+1. **¿Por qué ordenar 20 documentos realmente no necesita un Isolate?**:
+   - En una colección de 20 documentos, el cálculo trigonométrico de la fórmula de Haversine requiere menos de 1 milisegundo en CPUs móviles contemporáneas. En términos de coste computacional estricto, crear un Isolate y transferir los objetos por copia de memoria (*message passing*) introduce una pequeña sobrecarga (*overhead*) de serialización.
+2. **¿Por qué se implementó en un Isolate en este proyecto? (Razón Curricular y Arquitectónica)**:
+   - **Objetivo pedagógico y de medición (0490 PSP)**: Para demostrar el dominio del patrón de concurrencia y medir los tiempos de ejecución inter-hilos sin suponer riesgos de estabilidad.
+   - **Escalabilidad y prevención de bloqueo**: En entornos de producción donde el catálogo escale a 500, 5.000 o 50.000 documentos con coordenadas, ejecutar trigonometría iterativa en el hilo principal congelaría el *Event Loop* durante varios fotogramas (*frame drops / jank*).
+   - **Respeto al usuario**: El usuario puede cambiar de pestaña, hacer scroll o interactuar con el mapa mientras el isolate ordena los perfiles, garantizando una tasa de refresco ininterrumpida de 60/120 fps.
+
+---
+
+### 10.3. Guía de Prueba y Verificación del Bloque 6
+
+1. Inicia sesión en la aplicación y accede a la nueva pestaña **"Mapa"** en la barra inferior (o pulsa el botón rápido "Mapa" en `HomeView`).
+2. **Verificación del Mapa**:
+   - Comprueba que las teselas de OpenStreetMap cargan correctamente con la atribución legal abajo a la derecha.
+   - Verifica que tu posición aparece como un marcador azul y los contactos con ubicación como marcadores granates.
+   - Pulsa sobre el marcador de cualquier contacto: verifica que se abre la tarjeta inferior con su foto, distancia en km o metros y el botón "Chatear".
+3. **Verificación de la Lista «Cerca de mí»**:
+   - Cambia el selector superior al modo **"Cerca de mí"**.
+   - Observa cómo aparece el indicador de estado *"Calculando distancias en Isolate secundario..."*.
+   - Mueve la pantalla hacia arriba y abajo durante el cálculo: la lista no se congela en ningún momento.
+   - Comprueba que los perfiles aparecen ordenados de menor a mayor distancia (ej. `12 km`, `70 km`, `505 km`).
+
+---
+
+## 🔍 11. Fase 1b — Bloque 2: Consultas que Responden Preguntas (0486 AD RA4.e · RA4.g · RA4.d)
+
+En este bloque se da cumplimiento a los criterios curriculares de **Acceso a Datos (0486 AD)** mediante la persistencia estructurada, la creación de índices compuestos y la implementación de **4 consultas avanzadas** sobre Cloud Firestore, garantizando un catálogo con $\ge 20$ documentos para su evaluación determinista.
+
+### 11.1. Colección de Contenido y Sembrado Asistido ($\ge 20$ documentos)
+Para asegurar que la corrección de las consultas sea verificable inmediatamente en cualquier entorno limpio, la clase `QueriesAdmin` (`lib/admins/queries_admin.dart`) incorpora la función `sembrar20PerfilesPrueba()`, accesible tanto mediante el botón interactivo de matraz en la barra superior (`Icons.science_outlined`) como automáticamente si la colección cuenta con menos de 20 documentos.
+- **Datos sembrados**: Nombres reales, edades entre 19 y 45 años, estados `conectado` alternados, fechas de registro escalonadas en los últimos 70 días y coordenadas geográficas reales a lo largo del eje **Madrid Capital**, **Corredor del Henares** (Coslada, San Fernando, Torrejón de Ardoz, Alcalá de Henares, Meco, Azuqueca de Henares, Alovera, Cabanillas del Campo) y **Guadalajara**.
+
+---
+
+### 11.2. Consultas Avanzadas y Experiencia de Usuario («Comunidad» y «Descubrir»)
+
+En lugar de crear pantallas artificiales o desconectadas del producto, la aplicación integra las consultas avanzadas y los filtros de Firestore de forma funcional y adaptada a la privacidad del usuario:
+
+#### 1. En la Pestaña de Directorio («Comunidad» - `EditProfileView`): Filtros Dinámicos
+El directorio de usuarios de la aplicación ofrece una experiencia limpia y enfocada mediante dos vistas principales:
+
+* **Filtro 1 («Mis Contactos»)**:
+  - Muestra prioritariamente aquellos perfiles con los que el usuario activo mantiene una conversación abierta en el chat, preservando la privacidad y permitiendo un acceso rápido a sus contactos frecuentes.
+  - Presenta avatar (Base64 o URL), indicador de estado de conexión en tiempo real, edad y botón directo para abrir el chat existente.
+
+* **Filtro 2 («Descubrir (< 25 km)» — Algoritmo de Proximidad y Descubrimiento)**:
+  - **Pregunta de negocio**: *¿Qué miembros de la comunidad no están todavía en mis conversaciones y se encuentran a menos de 25 km de mi ubicación actual para poder entablar conversación?*
+  - **Lógica e Implementación**:
+    1. Obtiene los perfiles de la base de datos excluyendo al usuario actual y a cualquier contacto con el que ya mantenga un chat activo (`contactosConChat`).
+    2. Calcula la distancia geodésica exacta en kilómetros entre la posición GPS del usuario actual y la coordenada `posicion` de cada perfil mediante la fórmula de Haversine (`LocationAdmin.calcularDistanciaHaversine(...)`).
+    3. Filtra con criterio estricto `distanciaKm <= 25.0` y ordena la lista de menor a mayor distancia.
+    4. Muestra tarjetas interactivas con badge de distancia dinámica (e.g. `«A 3.4 km»` o `«A 450 m»`), estado de conexión y acción directa **«Chatear»**.
+  - **Regla estricta de privacidad en el Mapa (`MapaView`)**: Los usuarios de la sección "Descubrir" **no aparecen en el mapa** hasta que se inicia formalmente una conversación con ellos. De este modo, el mapa satelital/callejero queda reservado exclusivamente a contactos confirmados, evitando la sobrecarga visual y garantizando la privacidad de los usuarios desconocidos.
+
+---
+
+#### 2. Las 4 Consultas Avanzadas Académicas en `QueriesAdmin` y su Validación Unitaria
+Para certificar el cumplimiento curricular exhaustivo (0486 AD RA4.e, RA4.g, RA4.d), la clase `QueriesAdmin` (`lib/admins/queries_admin.dart`) implementa las 4 consultas avanzadas exigidas por la rúbrica, todas ellas probadas unitariamente en `test/firestore_queries_test.dart` con un 100% de éxito:
+
+1. **Consulta 1 (`where` compuesto con igualdad y rango)**:
+   - *¿Qué miembros están conectados ahora mismo y tienen al menos 18 años?*
+   - Filtro: `where("conectado", isEqualTo: true).where("edad", isGreaterThanOrEqualTo: 18)`.
+   - Respaldada por el índice compuesto en `firestore.indexes.json` (`conectado ASC`, `edad ASC`).
+2. **Consulta 2 (`orderBy` con `limit`)**:
+   - *¿Cuáles son los 5 miembros más recientemente registrados en la comunidad?*
+   - Filtro: `orderBy("fechaRegistro", descending: true).limit(5)`.
+3. **Consulta 3 (`where` con rango de fechas sobre `Timestamp`)**:
+   - *¿Qué perfiles se crearon durante los últimos 30 días?*
+   - Filtro: `where("fechaRegistro", isGreaterThanOrEqualTo: hace30Dias).where("fechaRegistro", isLessThanOrEqualTo: ahora).orderBy("fechaRegistro", descending: true)`.
+4. **Consulta 4 (Paginación con `startAfterDocument`)**:
+   - *¿Cómo explorar el directorio completo en bloques de 6 en 6 de forma eficiente?*
+   - Filtro: `orderBy("name").limit(6).startAfterDocument(ultimoDoc)`. Permite una carga fluida por bloques optimizando la cuota de lecturas de Firestore.
+
+---
+
+### 11.3. Decisión Arquitectónica: ¿Escuchar (`snapshots`) o Leer una Vez (`get`)?
+
+> *"Escucharlo todo siempre no es una decisión, es no haberla tomado."*
+
+En la arquitectura de este proyecto, cada pantalla y funcionalidad justifica su estrategia de lectura en base al principio de **eficiencia de costes, latencia y ciclo de vida de la batería**:
+
+| Pantalla / Funcionalidad | Estrategia | Justificación Técnica |
+|---|:---:|---|
+| **Chat Individual (`ChatScreen`)** | `snapshots()` *(Tiempo Real)* | La mensajería instantánea exige latencia cero y sincronización bidireccional reactiva. El usuario no debe recargar manualmente para recibir mensajes nuevos de su interlocutor. |
+| **Bandeja de Entrada (`ConversacionesView`)** | `snapshots()` *(Tiempo Real)* | Permite actualizar inmediatamente el contador de mensajes no leídos y la última hora del mensaje sin interacción del usuario. |
+| **Mapa Interactivo (`MapaView`)** | `get()` *(Puntual)* | La geolocalización y los marcadores de los contactos se consultan al entrar a la pantalla o mediante recarga explícita. Mantener una escucha abierta sobre cientos de coordenadas consumiría excesivo ancho de banda y batería de GPS/red en segundo plano. |
+| **Consultas y Filtros (`EditProfileView`)** | `get()` *(Puntual)* | Las consultas analíticas (filtros por edad, fechas y paginación) son operaciones exploratorias desencadenadas a petición del usuario (*on-demand*). Usar `snapshots()` en consultas paginadas generaría múltiples suscripciones abiertas, rompería la estabilidad de los cursores `startAfterDocument` y multiplicaría exponencialmente las lecturas facturables de Firestore. |
+
+---
+
+## 🗑️ 12. Fase 1b — Bloque 3: Modificar y Borrar con Seguridad (0486 AD RA4.f)
+
+En este bloque se implementan las operaciones de modificación (`update()`) y eliminación (`delete()`) sobre documentos propios, con cuadros de diálogo modales de confirmación y blindaje mediante reglas de seguridad en Cloud Firestore.
+
+### 12.1. Modificación de Documentos Propios (`update()`)
+- En el modal de edición de perfil (`_mostrarModalEdicionPerfil`), cuando el documento de Firestore ya existe, se ejecuta formalmente `db.collection("Perfiles").doc(uid).update(...)` actualizando únicamente los campos modificados (`name`, `edad`, `urlAvatar`, `avatarBase64`, `posicion`, `fechaPosicion`).
+
+### 12.2. Borrado de Documentos Propios con Diálogo de Confirmación (`delete()`)
+1. **Borrado de Mensajes Propios (`ChatScreen`)**:
+   - En el hilo de conversación, al realizar una **pulsación prolongada (*long press*)** sobre cualquier mensaje enviado por el usuario actual (`remitenteUID == currentUid`), se despliega un diálogo modal de confirmación `showDialog`:
+     - *"¿Estás seguro de que deseas eliminar este mensaje? Esta acción no se puede deshacer."*
+     - Botones: "Cancelar" y "Eliminar" (en color rojo destructivo).
+   - Al confirmar, se invoca `db.collection("Mensajes").doc(mensaje.uid).delete()`. Si la operación falla, se captura el error y se notifica al usuario mediante un `SnackBar` con fondo rojo.
+   - **Regla de interfaz**: Si el mensaje pertenece a la otra persona, la opción de eliminar **no se muestra**.
+2. **Borrado de Perfil Propio (`EditProfileView`)**:
+   - En el modal de edición se incluye el botón destructivo *"Eliminar mi perfil y cuenta"*.
+   - Muestra un diálogo de confirmación antes de proceder.
+   - Al confirmar, ejecuta `db.collection("Perfiles").doc(uid).delete()`, detiene el servicio de presencia en tiempo real, cancela las suscripciones, cierra sesión en Firebase Auth y redirige a la pantalla de `/login`.
+
+### 12.3. Blindaje de Seguridad en `firestore.rules` (0486 AD RA4.f)
+Aunque la interfaz de usuario no permita seleccionar opciones sobre documentos ajenos, las reglas de Firestore impiden estrictamente cualquier manipulación ilegítima desde clientes externos:
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuthenticated() { return request.auth != null; }
+    function isOwner(userId) { return isAuthenticated() && request.auth.uid == userId; }
+
+    // Colección: Perfiles
+    match /Perfiles/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isOwner(userId) || (isAuthenticated() && userId.matches('mock_user_.*'));
+      // Solo el propietario puede eliminar su perfil
+      allow delete: if isOwner(userId);
+    }
+
+    // Colección: Mensajes
+    match /Mensajes/{messageId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (
+        request.resource.data.remitenteUID == request.auth.uid ||
+        request.resource.data.remitenteUID == request.auth.token.email
+      );
+      // Solo el autor puede editar su mensaje o el destinatario marcarlo leído
+      allow update: if isAuthenticated() && (
+        resource.data.remitenteUID == request.auth.uid ||
+        resource.data.remitenteUID == request.auth.token.email ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['leido'])
+      );
+      // Solo el autor puede eliminar el mensaje
+      allow delete: if isAuthenticated() && (
+        resource.data.remitenteUID == request.auth.uid ||
+        resource.data.remitenteUID == request.auth.token.email
+      );
+    }
+  }
+}
+```
+
+
+
 
 

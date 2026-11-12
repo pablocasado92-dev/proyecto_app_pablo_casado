@@ -14,16 +14,17 @@ service cloud.firestore {
 
     // ===============================================================
     // Colección: Perfiles
-    // Document ID: UID del usuario en Firebase Auth
+    // Document ID: UID del usuario en Firebase Auth o mock_user_* para pruebas
     // ===============================================================
     match /Perfiles/{userId} {
       // Permite la lectura a usuarios autenticados para explorar perfiles y chatear
       allow read: if isAuthenticated();
 
-      // Solo el propio usuario puede crear, modificar o eliminar su perfil
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
-      allow delete: if isOwner(userId);
+      // Solo el propio usuario puede crear su perfil (o perfiles de prueba en desarrollo)
+      allow create, update: if isOwner(userId) || (isAuthenticated() && userId.matches('mock_user_.*'));
+
+      // Solo el propio usuario puede eliminar su documento de perfil (o perfiles mock)
+      allow delete: if isOwner(userId) || (isAuthenticated() && userId.matches('mock_user_.*'));
     }
 
     // ===============================================================
@@ -40,11 +41,18 @@ service cloud.firestore {
         request.resource.data.remitenteUID == request.auth.token.email
       );
 
-      // Permite actualizar mensajes a usuarios autenticados (marcar como leído: leido = true)
-      allow update: if isAuthenticated();
+      // Permite modificar si es el autor (ej: editar mensaje) o destinatario (marcar leído: leido = true)
+      allow update: if isAuthenticated() && (
+        resource.data.remitenteUID == request.auth.uid ||
+        resource.data.remitenteUID == request.auth.token.email ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['leido'])
+      );
 
-      // Solo el autor del mensaje puede eliminarlo
-      allow delete: if isAuthenticated() && resource.data.remitenteUID == request.auth.uid;
+      // Solo el remitente del mensaje puede eliminarlo (Bloque 3 - 0486 RA4.f)
+      allow delete: if isAuthenticated() && (
+        resource.data.remitenteUID == request.auth.uid ||
+        resource.data.remitenteUID == request.auth.token.email
+      );
     }
   }
 }

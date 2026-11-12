@@ -309,10 +309,29 @@ class _HomeViewState extends State<HomeView> {
                         ),
                       ),
                       icon: const Icon(Icons.people_outline_rounded, size: 18),
-                      label: const Text('Ver Perfiles'),
+                      label: const Text('Perfiles'),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pushNamed(context, '/mapa');
+                      },
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        foregroundColor: AppColores.principal,
+                        side: const BorderSide(color: AppColores.principal),
+                        backgroundColor: AppColores.suave,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppRadios.campo),
+                        ),
+                      ),
+                      icon: const Icon(Icons.map_outlined, size: 18),
+                      label: const Text('Mapa'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () {
@@ -330,7 +349,7 @@ class _HomeViewState extends State<HomeView> {
                         Icons.chat_bubble_outline_rounded,
                         size: 18,
                       ),
-                      label: const Text('Mis Chats'),
+                      label: const Text('Chats'),
                     ),
                   ),
                 ],

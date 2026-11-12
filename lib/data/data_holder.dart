@@ -7,12 +7,14 @@ import 'package:flutter/material.dart';
 import '../admins/device_admin.dart';
 import '../admins/firebase_admin.dart';
 import '../admins/location_admin.dart';
+import '../admins/queries_admin.dart';
 import '../admins/storage_admin.dart';
 import '../fb_objects/conversacion.dart';
 import '../fb_objects/mensaje.dart';
 import '../fb_objects/perfil.dart';
 
 export '../admins/location_admin.dart';
+export '../admins/queries_admin.dart';
 export '../fb_objects/conversacion.dart';
 export '../fb_objects/mensaje.dart';
 export '../fb_objects/perfil.dart';
@@ -33,6 +35,9 @@ class DataHolder {
 
   LocationAdmin? _locationAdmin;
   LocationAdmin get locationAdmin => _locationAdmin ??= LocationAdmin();
+
+  QueriesAdmin? _queriesAdmin;
+  QueriesAdmin get queriesAdmin => _queriesAdmin ??= QueriesAdmin();
 
   DeviceAdmin? deviceAdmin;
 
