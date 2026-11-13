@@ -66,6 +66,10 @@ scripts/
 specs/
 hooks.json
 plugin.json
+generar_evidencias_pdf.py
+evidencias/
+Memoria_Evidencias_Pruebas_Fase1b.pdf
+*.pdf
 
 
 
