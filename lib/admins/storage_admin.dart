@@ -132,7 +132,7 @@ class StorageAdmin {
     return rutaURL;
   }
 
-  /// Método de compatibilidad retroactiva: comprime y sube en un único paso
+  /// Función auxiliar de compatibilidad retroactiva: comprime y sube en un único paso
   Future<String> subirAvatar(XFile f, String userUid) async {
     final procesada = await procesarYComprimirEnIsolate(f);
     return await subirBytesAvatar(procesada.bytesComprimidos, userUid);

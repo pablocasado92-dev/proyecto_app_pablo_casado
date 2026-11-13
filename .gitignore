@@ -50,7 +50,7 @@ app.*.map.json
 # Environment variables & secrets
 .env
 .env.*
-!.env.example
+.env.example
 lib/firebase_options.dart
 android/app/google-services.json
 ios/Runner/GoogleService-Info.plist
@@ -64,5 +64,8 @@ GEMINI.md
 docs/
 scripts/
 specs/
+hooks.json
+plugin.json
+
 
 

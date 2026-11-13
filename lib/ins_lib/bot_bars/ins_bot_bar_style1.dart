@@ -3,12 +3,13 @@ import 'package:flutter/material.dart';
 import '../../data/data_holder.dart';
 
 /// =====================================================================
-/// InsBotBarStyle1 — BARRA DE NAVEGACIÓN INFERIOR REUTILIZABLE (3 PESTAÑAS)
+/// InsBotBarStyle1 — BARRA DE NAVEGACIÓN INFERIOR REUTILIZABLE (4 PESTAÑAS)
 /// ---------------------------------------------------------------------
-/// Componente de barra de navegación inferior con 3 pestañas:
+/// Componente de barra de navegación inferior con 4 pestañas:
 ///   0 Principal -> "/home"
-///   1 Perfil    -> "/edit_profile"
-///   2 Mensajes  -> "/conversaciones"
+///   1 Perfiles  -> "/edit_profile"
+///   2 Mapa      -> "/mapa"
+///   3 Mensajes  -> "/conversaciones"
 /// =====================================================================
 class InsBotBarStyle1 extends StatefulWidget {
   final bool blBadge1;

@@ -77,12 +77,19 @@ Si ya dispones de los archivos de configuración descargados de la Consola de Fi
   flutter run -d chrome
   ```
 
-### 1.6. Comprobación de Análisis Estático y Tests
-Para verificar que el código compila sin errores ni advertencias:
+### 1.6. Comprobación de Análisis Estático y Tests Automatizados
+Para verificar la ausencia de errores de compilación, linter y validar la lógica de negocio completa:
 ```bash
 flutter analyze
 flutter test
 ```
+
+El proyecto cuenta con una suite completa de **15 pruebas unitarias automatizadas** distribuidas en 5 suites sin dependencias de emulador:
+* `test/firestore_queries_test.dart`: Valida las 4 consultas de Firestore (doble `where`, `orderBy` con `limit`, rango de fechas `Timestamp` y paginación con `startAfterDocument`). *(0486 AD RA4.e · RA4.g)*.
+* `test/distance_isolate_test.dart`: Valida el cálculo trigonométrico de Haversine y la ordenación de contactos por cercanía en segundo plano. *(0490 PSP RA2.c · 0489 PMDM RA2.k)*.
+* `test/avatar_base64_test.dart`: Valida la compresión multihilo y la generación de miniaturas Base64 para carga instantánea offline. *(0490 PSP RA2.e)*.
+* `test/location_test.dart`: Valida la encapsulación tipada de `LocationResult`, conversión a `GeoPoint` y control de timeouts. *(0489 PMDM)*.
+* `test/google_auth_test.dart`: Valida el flujo de datos del perfil autenticado con Google y la detección del `primerLogin`. *(0489 PMDM)*.
 
 ---
 
@@ -200,18 +207,21 @@ Todas las rutas están declaradas en la tabla `routes` de `MaterialApp` (`lib/ma
   final String? argContacto = ModalRoute.of(context)?.settings.arguments as String?;
   ```
 
-### 4.7. Barra Inferior de 3 Secciones (Lista y Cuadrícula con Estados de Carga, Vacío y Error)
-El widget reutilizable `InsBotBarStyle1` conecta las 3 secciones principales:
-1. **Principal (`/home` - `HomeView`)**: Panel de bienvenida con tarjeta resumen del usuario, avatar, chip de edad y accesos directos.
-2. **Perfiles en Conversación (`/edit_profile` / `/perfiles` - `EditProfileView` — Sección en CUADRÍCULA)**:
-   * **Muestra elementos de la colección `Perfiles` filtrados por conversaciones activas**: Utiliza un `GridView.builder` (2 columnas) que filtra la colección `Perfiles` para mostrar únicamente a los contactos con los que el usuario tiene chats iniciados en `Mensajes`.
-   * **Badge de estado de conexión**: Cada tarjeta cuenta en su esquina superior izquierda con un indicador visual de estado (**🟢 En línea / ⚪ Desconectado**), sincronizado con el campo `conectado` del perfil.
+### 4.7. Barra Inferior de 4 Secciones (Lista, Cuadrícula y Mapa con Estados de Carga, Vacío y Error)
+El widget reutilizable `InsBotBarStyle1` conecta las 4 secciones principales de la experiencia de usuario:
+1. **Principal (`/home` - `HomeView`)**: Panel de bienvenida con tarjeta resumen del usuario, avatar, chip de edad, coordenadas GPS y accesos directos.
+2. **Perfiles y Descubrimiento (`/edit_profile` / `/perfiles` - `EditProfileView` — Sección en CUADRÍCULA)**:
+   * **Directorio filtrado en cuadrícula de 2 columnas**: Presenta a los contactos con los que se mantiene chat activo y el filtro geodésico de proximidad («Descubrir < 25 km»).
+   * **Badge de estado de conexión**: Cada tarjeta cuenta con un indicador visual reactivo (**🟢 En línea / ⚪ Desconectado**), sincronizado con el campo `conectado` del perfil.
    * **Gestión de los 3 Estados en la Colección**:
-     * **Estado de carga**: Muestra un `CircularProgressIndicator` centrado con texto *"Cargando perfiles con conversaciones activas..."*.
+     * **Estado de carga**: Muestra un `CircularProgressIndicator` centrado con texto *"Cargando perfiles..."*.
      * **Estado de error**: Muestra un icono de advertencia, el detalle del error y un botón interactivo de *Reintentar*.
-     * **Estado vacío**: Muestra un aviso ilustrativo cuando el usuario aún no tiene conversaciones iniciadas (*"Sin conversaciones iniciadas"*), con un botón directo para ir a la sección de Mensajes.
+     * **Estado vacío**: Muestra un aviso ilustrativo cuando el usuario aún no tiene contactos o perfiles en el radio (*"Sin conversaciones iniciadas"*), con un botón directo para ir a la sección de Mensajes.
    * **Edición interactiva**: Incluye un panel modal (`showModalBottomSheet`) con formulario completo (nombre, edad en dropdown, avatar con preview y conmutador de onboarding) persistido en Firestore mediante `.withConverter<Perfil>`.
-3. **Mensajes (`/conversaciones` - `ConversacionesView` — Sección en LISTA)**:
+3. **Mapa Interactivo y Proximidad (`/mapa` - `MapaView` — Bloque 6)**:
+   * Integración con `flutter_map` y OpenStreetMap para ubicar al usuario y a sus contactos con chat activo sobre la cartografía.
+   * Panel modal inferior con la lista «Cerca de mí» calculada y ordenada en un **Isolate secundario** (`compute`).
+4. **Mensajes (`/conversaciones` - `ConversacionesView` — Sección en LISTA)**:
    * Utiliza `ListView.builder` alimentado en tiempo real desde la colección `Mensajes` de Firestore.
    * Gestiona explícitamente el **estado de carga**, **estado de error** (con botón de reintento) y **estado vacío** (*"No tienes conversaciones activas"*).
 

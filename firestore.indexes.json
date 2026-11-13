@@ -1,0 +1,19 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "Perfiles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "conectado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "edad",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

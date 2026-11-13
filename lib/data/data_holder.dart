@@ -435,5 +435,5 @@ class DataHolder {
   }
 }
 
-/// Instancia global accesible en todo el proyecto
+/// Instancia global de acceso directo para el proyecto
 final DataHolder dataHolder = DataHolder.instance;

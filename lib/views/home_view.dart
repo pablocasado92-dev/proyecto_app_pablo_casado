@@ -48,7 +48,7 @@ class _HomeViewState extends State<HomeView> {
     DataHolder.instance.iniciarPresencia();
   }
 
-  /// BLOQUE 4: Cierra la sesión en Firebase Auth y limpia todo lo que quede abierto
+  /// Cierra la sesión en Firebase Auth y libera todos los recursos y suscripciones activas
   /// (cancela el StreamSubscription de Firestore mediante clearData() -> perfil.dispose()).
   Future<void> _signOut(BuildContext context) async {
     await DataHolder.instance.detenerPresencia();
