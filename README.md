@@ -123,21 +123,27 @@ El código fuente dentro de `lib/` está dividido siguiendo el principio de **Se
 lib/
 ├── views/             # 1. PANTALLAS (Capa de Presentación / UI)
 │   ├── splash_screen.dart         # Pantalla inicial con imagen por URL y evaluación de sesión
-│   ├── onboarding_screen.dart     # Carrusel de 3 pantallas deslizables (primera vez)
+│   ├── onboarding_screen.dart     # Carrusel de 3 pantallas deslizables temático MTG
 │   ├── login_screen.dart          # Acceso con correo y contraseña + tratamiento de errores
 │   ├── register_screen.dart       # Registro en Auth + guardado de Perfil en Firestore
-│   ├── home_view.dart             # Panel principal del usuario y cierre de sesión
-│   ├── edit_profile_view.dart     # Sección en Cuadrícula (GridView) de la colección Perfiles + edición
+│   ├── home_view.dart             # Panel principal del usuario y accesos directos
+│   ├── edit_profile_view.dart     # Sección en Cuadrícula (GridView) de duelistas + edición MTG
 │   ├── conversaciones_view.dart   # Sección en Lista (ListView) de conversaciones / mensajes
-│   └── chat_screen.dart           # Chat 1 a 1 en tiempo real
+│   ├── chat_screen.dart           # Chat 1 a 1 en tiempo real
+│   ├── mapa_view.dart             # Mapa OpenStreetMap con marcadores de contactos y partidas MTG
+│   └── mazos_view.dart            # Biblioteca de barajas MTG (CRUD compatible con Moxfield)
 ├── fb_objects/        # 2. MODELOS DE DATOS (Capa de Dominio / DTOs con withConverter)
-│   ├── perfil.dart                # Modelo Perfil + conversores fromFirestore / toFirestore
-│   ├── mensaje.dart               # Modelo Mensaje + conversores fromFirestore / toFirestore
-│   └── conversacion.dart          # Modelo agrupador de hilos de conversación
+│   ├── perfil.dart                # Modelo Perfil con formatos MTG, nivel y bio
+│   ├── mensaje.dart               # Modelo Mensaje con soporte para grupos
+│   ├── conversacion.dart          # Modelo agrupador de hilos 1 a 1 y playgroups
+│   ├── partida.dart               # Modelo Partida para mesas y torneos en Firestore
+│   └── mazo.dart                  # Modelo Mazo con parser de cartas de texto plano
 ├── admins/            # 3. SERVICIOS (Capa de Acceso a Datos y Dispositivo)
-│   ├── firebase_admin.dart        # Servicio de consulta de perfiles en Firestore con withConverter
-│   ├── storage_admin.dart         # Servicio de compresión y subida de imágenes a Firebase Storage
-│   └── device_admin.dart          # Servicio de consulta de dimensiones y plataforma (Web/Android)
+│   ├── firebase_admin.dart        # Servicio de autenticación con Google y presencia
+│   ├── storage_admin.dart         # Compresión en Isolate y subida a Firebase Storage
+│   ├── location_admin.dart       # Geolocalización GPS y cálculo Haversine
+│   ├── queries_admin.dart         # Consultas avanzadas en Firestore y sembrado MTG
+│   └── device_admin.dart          # Consulta de dimensiones y plataforma (Web/Android)
 ├── data/              # 4. ESTADO COMPARTIDO (Singleton)
 │   └── data_holder.dart           # Almacén central en memoria, cachés y limpieza al cerrar sesión
 ├── ins_lib/           # 5. COMPONENTES REUTILIZABLES Y SISTEMA DE DISEÑO
@@ -659,7 +665,20 @@ service cloud.firestore {
 }
 ```
 
+---
 
+## 🧪 13. Suite de Pruebas Unitarias Automatizadas (18 Tests en Verde)
 
+El proyecto incluye una batería exhaustiva de **18 pruebas unitarias automatizadas** ejecutables mediante `flutter test`, cubriendo la lógica matemática, compresión en Isolate, consultas de base de datos y los nuevos modelos del dominio Magic: The Gathering (MTG):
 
+```bash
+flutter test
+# 00:02 +18: All tests passed!
+```
 
+| Archivo de Test | Pruebas Unitarias Ejecutadas | Aspecto Evaluado |
+| :--- | :--- | :--- |
+| **`test/distance_haversine_test.dart`** | 4 tests | Precisión trigonométrica del algoritmo Haversine, cálculo de distancias reales en el Corredor del Henares (Madrid, Alcalá, Guadalajara), simetría ($d(A,B) = d(B,A)$) e identidad de punto cero ($d(A,A) = 0$). |
+| **`test/avatar_base64_test.dart`** | 5 tests | Pipeline de compresión de avatares a menos de 300 KB, generación determinista de Base64, decodificación de cabeceras de imagen, procesamiento en Isolate y tolerancia a fallos. |
+| **`test/firestore_queries_test.dart`** | 6 tests | Las 4 consultas obligatorias de Acceso a Datos (AD RA4.e · RA4.g): `where` con 2 condiciones (`conectado` y `edad`), `orderBy` con `limit`, rango cronológico sobre `fechaRegistro`, paginación con `startAfterDocument`, y sembrado/eliminación en lote de 20 documentos mock. |
+| **`test/mtg_models_test.dart`** | 3 tests | Serialización y deserialización de campos MTG en `Perfil` (`formatosPreferidos`, `nivelJuego`, `biografiaMTG`), cálculo de plazas libres y estado lleno en `Partida`, y parser de listas de cartas en texto plano compatible con Moxfield/MTGGoldfish en `Mazo`. |

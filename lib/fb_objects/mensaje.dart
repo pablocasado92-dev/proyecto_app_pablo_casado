@@ -31,6 +31,12 @@ class Mensaje {
   /// Indica si el destinatario ya ha leído el mensaje.
   bool leido = false;
 
+  /// Identificador opcional de la conversación o mesa de juego grupal
+  String? conversacionId;
+
+  /// Lista de UIDs de los usuarios que han leído el mensaje (para soporte grupal)
+  List<String> leidoPor = <String>[];
+
   /// Constructor para inicializar un mensaje nuevo en memoria antes de enviarlo.
   Mensaje.initCampos(
     this.uid,
@@ -39,7 +45,11 @@ class Mensaje {
     this.remitenteUID,
     this.fecha, {
     this.leido = false,
-  });
+    this.conversacionId,
+    List<String>? leidoPor,
+  }) {
+    if (leidoPor != null) this.leidoPor = leidoPor;
+  }
 
   /// Constructor a partir de un ID y un mapa de datos de Firestore.
   Mensaje(this.uid, Map<String, dynamic> fila) {
@@ -48,6 +58,12 @@ class Mensaje {
     remitenteUID = fila["remitenteUID"] as String? ?? "";
     fecha = (fila["fecha"] as Timestamp?) ?? (fila["enviado"] as Timestamp?);
     leido = fila["leido"] as bool? ?? false;
+    conversacionId = fila["conversacionId"] as String?;
+    leidoPor =
+        (fila["leidoPor"] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .toList() ??
+        <String>[];
   }
 
   /// Conversor tipado (fromFirestore): transforma un DocumentSnapshot de Firestore
@@ -69,6 +85,8 @@ class Mensaje {
       if (remitenteUID != null) "remitenteUID": remitenteUID,
       if (fecha != null) "fecha": fecha,
       "leido": leido,
+      if (conversacionId != null) "conversacionId": conversacionId,
+      if (leidoPor.isNotEmpty) "leidoPor": leidoPor,
     };
   }
 

@@ -24,27 +24,24 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   // Índice de la página actualmente visible
   int _currentPage = 0;
 
-  // Lista de elementos que componen las páginas del Onboarding
+  // Lista de elementos que componen las páginas del Onboarding temático de MTG
   final List<OnboardingItem> _items = [
     OnboardingItem(
-      title: 'Bienvenido a la App',
-      description:
-          'Tu espacio para conectar, comunicarte y gestionar tu perfil.',
-      icon: Icons.chat_bubble_outline_rounded,
+      title: 'Encuentra Mesas y Torneos',
+      description: 'Descubre partidas de Commander, Modern o Standard y eventos locales en el mapa a menos de 25 km.',
+      icon: Icons.map_outlined,
       color: AppColores.oscuro,
     ),
     OnboardingItem(
-      title: 'Mensajería en Tiempo Real',
-      description:
-          'Chatea al instante con tus contactos de forma rápida y segura.',
-      icon: Icons.cloud_sync_outlined,
+      title: 'Comunícate con tu Playgroup',
+      description: 'Chatea en tiempo real con otros Planeswalkers, organiza partidas y coordina quedadas seguras.',
+      icon: Icons.forum_outlined,
       color: AppColores.oscuro,
     ),
     OnboardingItem(
-      title: 'Personaliza tu Perfil',
-      description:
-          'Configura tu nombre, edad y foto de avatar con total libertad.',
-      icon: Icons.person_pin_circle_outlined,
+      title: 'Organiza tus Mazos',
+      description: 'Gestiona tus barajas clasificadas por formatos MTG y listas de cartas listas para jugar.',
+      icon: Icons.style_outlined,
       color: AppColores.oscuro,
     ),
   ];

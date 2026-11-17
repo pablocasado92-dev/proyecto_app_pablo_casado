@@ -55,12 +55,13 @@ lib/firebase_options.dart
 android/app/google-services.json
 ios/Runner/GoogleService-Info.plist
 
-# Local IDE / AI Tools
+# Local IDE / AI Tools & Specs
 .agents/
 .claude/
 skills-lock.json
 AGENTS.md
 GEMINI.md
+IA.md
 docs/
 scripts/
 specs/
@@ -70,6 +71,7 @@ generar_evidencias_pdf.py
 evidencias/
 Memoria_Evidencias_Pruebas_Fase1b.pdf
 *.pdf
+*.url.json
 
 
 

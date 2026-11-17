@@ -13,6 +13,7 @@ import 'views/edit_profile_view.dart';
 import 'views/home_view.dart';
 import 'views/login_screen.dart';
 import 'views/mapa_view.dart';
+import 'views/mazos_view.dart';
 import 'views/onboarding_screen.dart';
 import 'views/register_screen.dart';
 // Importación de vistas
@@ -98,6 +99,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         '/conversaciones': (context) => const ConversacionesView(),
         '/messages': (context) => const ConversacionesView(),
         '/chat': (context) => const ChatScreen(),
+        '/mazos': (context) => const MazosView(),
       },
     );
   }

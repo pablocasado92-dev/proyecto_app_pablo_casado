@@ -75,27 +75,17 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Imagen animada (GIF) cargada desde una URL remota con control de estados
+            // Imagen representativa MTG cargada desde assets (formato optimizado WebP)
             ClipRRect(
               borderRadius: BorderRadius.circular(20),
-              child: Image.network(
-                'https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExOW5qOXozaTR2dm91MjU4c2s0czFqNG9yNW16c2cxNnc3Ym85N21tdyZlcD12MV_pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/oVLqOvUWz2fUheuGNz/giphy.gif',
+              child: Image.asset(
+                'assets/images/splash_mtg.webp',
                 height: 300,
                 width: 300,
                 fit: BoxFit.cover,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return const SizedBox(
-                    height: 220,
-                    width: 220,
-                    child: Center(
-                      child: CircularProgressIndicator(color: Colors.white),
-                    ),
-                  );
-                },
                 errorBuilder: (context, error, stackTrace) {
                   return const Icon(
-                    Icons.movie_creation_outlined,
+                    Icons.style_outlined,
                     size: 100,
                     color: Colors.white,
                   );
@@ -104,17 +94,18 @@ class _SplashScreenState extends State<SplashScreen> {
             ),
             const SizedBox(height: 24),
             const Text(
-              'Proyecto App',
+              'Planeswalker Hub',
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
+                letterSpacing: 1.2,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             const Text(
-              'Cargando...',
-              style: TextStyle(fontSize: 16, color: Colors.white70),
+              'Comunidad & Encuentros de Magic: The Gathering',
+              style: TextStyle(fontSize: 13, color: Colors.white70),
             ),
             const SizedBox(height: 48),
             const CircularProgressIndicator(color: Colors.white),

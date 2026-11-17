@@ -53,6 +53,15 @@ class Perfil {
   /// BLOQUE 5: Fecha y hora en la que se capturó o actualizó la posición
   Timestamp? fechaPosicion;
 
+  /// MTG: Formatos de juego preferidos (Commander, Modern, Standard, Pioneer, Pauper, etc.)
+  List<String> formatosPreferidos = <String>[];
+
+  /// MTG: Nivel de juego o enfoque ('Casual', 'Competitivo', 'Iniciación')
+  String? nivelJuego;
+
+  /// MTG: Biografía o presentación en la comunidad MTG
+  String? biografiaMTG;
+
   /// Mensajes pertenecientes a la conversación del usuario.
   List<Mensaje> mensajes = <Mensaje>[];
 
@@ -83,7 +92,14 @@ class Perfil {
     this.ultimaConexion,
     this.posicion,
     this.fechaPosicion,
-  });
+    List<String>? formatosPreferidos,
+    this.nivelJuego,
+    this.biografiaMTG,
+  }) {
+    if (formatosPreferidos != null) {
+      this.formatosPreferidos = formatosPreferidos;
+    }
+  }
 
   /// Registra una función callback (listener) cuando una pantalla entra en escena (initState).
   void addListener(Function(int numeroMensajes) listener) {
@@ -131,6 +147,13 @@ class Perfil {
       ultimaConexion: data?['ultimaConexion'] as Timestamp?,
       posicion: data?['posicion'] as GeoPoint?,
       fechaPosicion: data?['fechaPosicion'] as Timestamp?,
+      formatosPreferidos:
+          (data?['formatosPreferidos'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          <String>[],
+      nivelJuego: data?['nivelJuego'] as String?,
+      biografiaMTG: data?['biografiaMTG'] as String?,
     );
   }
 
@@ -148,6 +171,10 @@ class Perfil {
       if (ultimaConexion != null) "ultimaConexion": ultimaConexion,
       if (posicion != null) "posicion": posicion,
       if (fechaPosicion != null) "fechaPosicion": fechaPosicion,
+      if (formatosPreferidos.isNotEmpty)
+        "formatosPreferidos": formatosPreferidos,
+      if (nivelJuego != null) "nivelJuego": nivelJuego,
+      if (biografiaMTG != null) "biografiaMTG": biografiaMTG,
     };
   }
 

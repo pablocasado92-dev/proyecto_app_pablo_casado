@@ -176,6 +176,22 @@ class _EditProfileViewState extends State<EditProfileView> {
         FirebaseAuth.instance.currentUser?.uid ?? perfilActual.uid;
     final formKey = GlobalKey<FormState>();
     final nameController = TextEditingController(text: perfilActual.name ?? '');
+    final bioController = TextEditingController(
+      text: perfilActual.biografiaMTG ?? '',
+    );
+    String? selectedNivel = perfilActual.nivelJuego ?? 'Casual';
+    List<String> selectedFormatos = List<String>.from(
+      perfilActual.formatosPreferidos,
+    );
+    const List<String> formatosDisponibles = [
+      'Commander',
+      'Modern',
+      'Standard',
+      'Pioneer',
+      'Pauper',
+      'Premodern',
+      'Draft/Limited',
+    ];
     String currentAvatarUrl = perfilActual.urlAvatar ?? '';
     String? currentAvatarBase64 = perfilActual.avatarBase64;
     XFile? nuevaImagenSeleccionada;
@@ -198,7 +214,7 @@ class _EditProfileViewState extends State<EditProfileView> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColores.tarjeta,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(AppRadios.cabecera),
@@ -267,7 +283,7 @@ class _EditProfileViewState extends State<EditProfileView> {
             void mostrarOpcionesOrigen() {
               showModalBottomSheet(
                 context: modalContext,
-                backgroundColor: Colors.white,
+                backgroundColor: AppColores.tarjeta,
                 shape: const RoundedRectangleBorder(
                   borderRadius: BorderRadius.vertical(
                     top: Radius.circular(AppRadios.cabecera),
@@ -285,7 +301,7 @@ class _EditProfileViewState extends State<EditProfileView> {
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: AppColores.oscuro,
+                              color: AppColores.texto,
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -294,7 +310,10 @@ class _EditProfileViewState extends State<EditProfileView> {
                               Icons.camera_alt_rounded,
                               color: AppColores.oscuro,
                             ),
-                            title: const Text('Tomar foto con la cámara'),
+                            title: const Text(
+                              'Tomar foto con la cámara',
+                              style: TextStyle(color: AppColores.texto),
+                            ),
                             onTap: () => seleccionarImagen(ImageSource.camera),
                           ),
                           ListTile(
@@ -302,7 +321,10 @@ class _EditProfileViewState extends State<EditProfileView> {
                               Icons.photo_library_rounded,
                               color: AppColores.oscuro,
                             ),
-                            title: const Text('Elegir de la galería'),
+                            title: const Text(
+                              'Elegir de la galería',
+                              style: TextStyle(color: AppColores.texto),
+                            ),
                             onTap: () => seleccionarImagen(ImageSource.gallery),
                           ),
                         ],
@@ -354,7 +376,7 @@ class _EditProfileViewState extends State<EditProfileView> {
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: AppColores.oscuro,
+                              color: AppColores.texto,
                             ),
                           ),
                         ],
@@ -500,6 +522,8 @@ class _EditProfileViewState extends State<EditProfileView> {
 
                       // Campo: Edad con Dropdown
                       DropdownButtonFormField<int>(
+                        isExpanded: true,
+                        dropdownColor: AppColores.tarjeta,
                         initialValue: selectedEdad,
                         decoration: InputDecoration(
                           labelText: 'Edad',
@@ -522,6 +546,145 @@ class _EditProfileViewState extends State<EditProfileView> {
                             selectedEdad = val;
                           });
                         },
+                      ),
+                      const SizedBox(height: 12),
+
+                      // MTG: Nivel de Juego (evita desbordamientos RenderFlex con isExpanded y ellipsis)
+                      DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        dropdownColor: AppColores.tarjeta,
+                        initialValue: selectedNivel,
+                        decoration: InputDecoration(
+                          labelText: 'Nivel / Estilo de Juego',
+                          prefixIcon: const Icon(Icons.military_tech_outlined),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(
+                              AppRadios.campo,
+                            ),
+                          ),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'Casual',
+                            child: Text(
+                              'Casual (Mesa distendida / Cocina)',
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Competitivo',
+                            child: Text(
+                              'Competitivo (Torneos / Tier 1)',
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Iniciación',
+                            child: Text(
+                              'Iniciación (Aprendiendo mecánicas)',
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ),
+                        ],
+                        onChanged: (val) {
+                          setModalState(() {
+                            selectedNivel = val;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 12),
+
+                      // MTG: Formatos preferidos
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColores.suave,
+                          borderRadius: BorderRadius.circular(AppRadios.campo),
+                          border: Border.all(color: AppColores.divisor),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(
+                                  Icons.style_outlined,
+                                  size: 18,
+                                  color: AppColores.oscuro,
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Formatos favoritos de MTG',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColores.texto,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              children: formatosDisponibles.map((f) {
+                                final isSelected = selectedFormatos.contains(f);
+                                return FilterChip(
+                                  label: Text(
+                                    f,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: isSelected
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                      color: isSelected
+                                          ? Colors.white
+                                          : AppColores.texto,
+                                    ),
+                                  ),
+                                  selected: isSelected,
+                                  selectedColor: AppColores.oscuro,
+                                  checkmarkColor: Colors.white,
+                                  backgroundColor: AppColores.fondo,
+                                  side: BorderSide(
+                                    color: isSelected
+                                        ? AppColores.oscuro
+                                        : AppColores.divisor,
+                                  ),
+                                  onSelected: (bool selected) {
+                                    setModalState(() {
+                                      if (selected) {
+                                        selectedFormatos.add(f);
+                                      } else {
+                                        selectedFormatos.remove(f);
+                                      }
+                                    });
+                                  },
+                                );
+                              }).toList(),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // MTG: Biografía / Presentación
+                      TextFormField(
+                        controller: bioController,
+                        maxLines: 2,
+                        decoration: InputDecoration(
+                          labelText: 'Biografía MTG / Comandantes',
+                          alignLabelWithHint: true,
+                          prefixIcon: const Icon(Icons.auto_stories_outlined),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(
+                              AppRadios.campo,
+                            ),
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 12),
 
@@ -548,7 +711,7 @@ class _EditProfileViewState extends State<EditProfileView> {
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w500,
-                                  color: AppColores.oscuro,
+                                  color: AppColores.texto,
                                 ),
                               ),
                             ),
@@ -606,7 +769,7 @@ class _EditProfileViewState extends State<EditProfileView> {
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.bold,
-                                      color: AppColores.oscuro,
+                                      color: AppColores.texto,
                                     ),
                                   ),
                                 ),
@@ -785,6 +948,12 @@ class _EditProfileViewState extends State<EditProfileView> {
                                     perfilMemoria.fechaPosicion =
                                         currentFechaPosicion;
                                     perfilMemoria.conectado = true; // El usuario está activo e interactuando en la app
+                                    perfilMemoria.biografiaMTG = bioController
+                                        .text
+                                        .trim();
+                                    perfilMemoria.nivelJuego = selectedNivel;
+                                    perfilMemoria.formatosPreferidos =
+                                        selectedFormatos;
 
                                     // BLOQUE 3 (0486 RA4.f): Modificar documento propio con update()
                                     final docRef = FirebaseFirestore.instance
@@ -1392,6 +1561,34 @@ class _EditProfileViewState extends State<EditProfileView> {
               ),
             ),
 
+            // Formato MTG o nivel de juego
+            if (perfil.formatosPreferidos.isNotEmpty ||
+                perfil.nivelJuego != null)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 1.5,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColores.suave,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  [
+                    if (perfil.formatosPreferidos.isNotEmpty)
+                      perfil.formatosPreferidos.first,
+                    if (perfil.nivelJuego != null) perfil.nivelJuego!,
+                  ].join(' · '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    color: AppColores.oscuro,
+                  ),
+                ),
+              ),
+
             // Email
             if (perfil.email != null)
               Text(
@@ -1540,6 +1737,34 @@ class _EditProfileViewState extends State<EditProfileView> {
                 color: AppColores.texto,
               ),
             ),
+
+            // Formato MTG o nivel
+            if (perfil.formatosPreferidos.isNotEmpty ||
+                perfil.nivelJuego != null)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 1.5,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColores.suave,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  [
+                    if (perfil.formatosPreferidos.isNotEmpty)
+                      perfil.formatosPreferidos.first,
+                    if (perfil.nivelJuego != null) perfil.nivelJuego!,
+                  ].join(' · '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    color: AppColores.oscuro,
+                  ),
+                ),
+              ),
 
             // Edad
             if (perfil.edad != null)

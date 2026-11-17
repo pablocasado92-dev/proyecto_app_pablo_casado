@@ -54,5 +54,72 @@ service cloud.firestore {
         resource.data.remitenteUID == request.auth.token.email
       );
     }
+
+    // ===============================================================
+    // Colección: Partidas (Mesas de juego y torneos MTG)
+    // Document ID: Autogenerado o partida_mock_*
+    // ===============================================================
+    match /Partidas/{partidaId} {
+      // Las mesas de juego son públicas para todos los Planeswalkers autenticados
+      allow read: if isAuthenticated();
+
+      // Creación permitida al usuario autenticado (o partidas de prueba)
+      allow create: if isAuthenticated() && (
+        request.resource.data.creadorUID == request.auth.uid ||
+        partidaId.matches('partida_mock_.*')
+      );
+
+      // El organizador puede actualizar la mesa, o jugadores pueden apuntarse/desapuntarse (jugadoresUIDs)
+      allow update: if isAuthenticated() && (
+        resource.data.creadorUID == request.auth.uid ||
+        partidaId.matches('partida_mock_.*') ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['jugadoresUIDs', 'estado'])
+      );
+
+      // Solo el organizador (o sembrado de prueba) puede borrar la mesa
+      allow delete: if isAuthenticated() && (
+        resource.data.creadorUID == request.auth.uid ||
+        partidaId.matches('partida_mock_.*')
+      );
+    }
+
+    // ===============================================================
+    // Colección: Mazos (Biblioteca de barajas MTG)
+    // Document ID: Autogenerado
+    // ===============================================================
+    match /Mazos/{mazoId} {
+      // Lectura permitida a cualquier usuario autenticado para explorar barajas comunitarias y propias
+      allow read: if isAuthenticated();
+
+      // Solo el propietario puede crear barajas bajo su UID
+      allow create: if isAuthenticated() &&
+        request.resource.data.propietarioUID == request.auth.uid;
+
+      // Solo el propietario puede editar o eliminar sus barajas
+      allow update, delete: if isAuthenticated() &&
+        resource.data.propietarioUID == request.auth.uid;
+    }
+
+    // ===============================================================
+    // Colección: Conversaciones (Hilos de chat y playgroups MTG)
+    // Document ID: Autogenerado
+    // ===============================================================
+    match /Conversaciones/{conversacionId} {
+      // Lectura y escritura solo para participantes del chat o playgroup
+      allow read: if isAuthenticated() && (
+        resource.data.creadorUID == request.auth.uid ||
+        (resource.data.participantesUIDs != null && request.auth.uid in resource.data.participantesUIDs)
+      );
+
+      allow create: if isAuthenticated() && (
+        request.resource.data.creadorUID == request.auth.uid ||
+        (request.resource.data.participantesUIDs != null && request.auth.uid in request.resource.data.participantesUIDs)
+      );
+
+      allow update: if isAuthenticated() && (
+        resource.data.creadorUID == request.auth.uid ||
+        (resource.data.participantesUIDs != null && request.auth.uid in resource.data.participantesUIDs)
+      );
+    }
   }
 }

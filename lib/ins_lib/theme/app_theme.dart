@@ -7,49 +7,99 @@ import 'package:flutter/material.dart';
 // dimensiones y estilos de texto de la aplicación.
 // =====================================================================
 
-/// Paleta de colores de la aplicación (Tonos Rojos / Granate / Borgoña)
+/// Paleta de colores inspirada en la interfaz oscura de Moxfield y MTG
 class AppColores {
-  /// Granate vibrante de marca principal
-  static const Color principal = Color.fromARGB(255, 168, 44, 62);
+  /// Morado amatista vibrante (Planeswalker / Moxfield accent)
+  static const Color principal = Color(0xFF8B5CF6);
 
-  /// Granate borgoña oscuro para iconos y textos destacados
-  static const Color oscuro = Color.fromARGB(255, 107, 18, 33);
+  /// Púrpura profundo para botones destacados y elementos primarios
+  static const Color oscuro = Color(0xFF7C3AED);
 
-  /// Granate muy suave / crema rosado para fondos de etiquetas e iconos
-  static const Color suave = Color.fromARGB(255, 247, 235, 239);
+  /// Grafito/púrpura suave para fondos de badges, chips y contenedores
+  static const Color suave = Color(0xFF282538);
 
-  /// Fondo general cálido muy suave de las pantallas
-  static const Color fondo = Color.fromARGB(255, 250, 245, 246);
+  /// Fondo oscuro confortable (Dark Mode Moxfield / Draftsim)
+  static const Color fondo = Color(0xFF13131A);
 
-  /// Fondo de tarjetas
-  static const Color tarjeta = Colors.white;
+  /// Superficie elevada para tarjetas y modales
+  static const Color tarjeta = Color(0xFF1E1E28);
 
-  /// Texto principal en grafito vino
-  static const Color texto = Color.fromARGB(255, 43, 26, 29);
+  /// Texto principal en blanco marfil de alto contraste
+  static const Color texto = Color(0xFFF3F4F6);
 
-  /// Texto secundario en vino apagado
-  static const Color textoSecundario = Color.fromARGB(255, 122, 104, 107);
+  /// Texto secundario en gris neutro legible
+  static const Color textoSecundario = Color(0xFF9CA3AF);
 
   /// Texto sobre fondo principal
   static const Color sobrePrincipal = Colors.white;
 
   /// Texto secundario sobre fondo principal
-  static const Color sobrePrincipalSuave = Color.fromARGB(220, 255, 255, 255);
+  static const Color sobrePrincipalSuave = Color(0xDCFFFFFF);
 
   /// Pastillas translúcidas sobre cabeceras
-  static const Color pastilla = Color.fromARGB(56, 255, 255, 255);
+  static const Color pastilla = Color(0x28FFFFFF);
 
-  /// Líneas divisorias en rosa/crema suave
-  static const Color divisor = Color.fromARGB(255, 238, 223, 226);
+  /// Líneas divisorias sutiles en grafito medio
+  static const Color divisor = Color(0xFF2D2D3E);
 
   /// Borde de pastillas
-  static const Color pastillaBorde = Color.fromARGB(110, 255, 255, 255);
+  static const Color pastillaBorde = Color(0x55FFFFFF);
 
-  /// Borde de campos deshabilitados
-  static const Color bordeCampo = Color.fromARGB(255, 216, 192, 196);
+  /// Borde de campos en reposo
+  static const Color bordeCampo = Color(0xFF3E3E50);
 
-  /// Color de errores
-  static const Color error = Color.fromARGB(255, 186, 26, 26);
+  /// Dorado legendario / multicolor MTG para torneos y destacados
+  static const Color dorado = Color(0xFFF59E0B);
+
+  /// Color de alertas y errores
+  static const Color error = Color(0xFFEF4444);
+}
+
+/// Identidad cromática oficial WUBRG de Magic: The Gathering
+class MtgColores {
+  /// W - White / Llanura (Pergamino marfil)
+  static const Color blanco = Color(0xFFF8F6D8);
+
+  /// U - Blue / Isla (Zafiro celeste)
+  static const Color azul = Color(0xFF38BDF8);
+
+  /// B - Black / Pantano (Ónice pizarra)
+  static const Color negro = Color(0xFF64748B);
+
+  /// R - Red / Montaña (Carmín vivo)
+  static const Color rojo = Color(0xFFEF4444);
+
+  /// G - Green / Bosque (Esmeralda naturaleza)
+  static const Color verde = Color(0xFF10B981);
+
+  /// C - Colorless / Incoloro (Plata artefacto)
+  static const Color incoloro = Color(0xFF94A3B8);
+
+  /// M - Multicolor / Gold (Oro de cartas multicolor)
+  static const Color multicolor = Color(0xFFF59E0B);
+
+  /// Lealtad de Planeswalker (Amatista Moxfield)
+  static const Color planeswalker = Color(0xFF8B5CF6);
+
+  /// Devuelve el color MTG correspondiente a la letra de maná
+  static Color colorParaSimbolo(String simbolo) {
+    switch (simbolo.toUpperCase().trim()) {
+      case 'W':
+        return blanco;
+      case 'U':
+        return azul;
+      case 'B':
+        return negro;
+      case 'R':
+        return rojo;
+      case 'G':
+        return verde;
+      case 'C':
+        return incoloro;
+      default:
+        return multicolor;
+    }
+  }
 }
 
 /// Espaciados de la interfaz
@@ -145,35 +195,38 @@ class AppTextos {
 /// =====================================================================
 class AppTheme {
   static ThemeData get tema {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: AppColores.oscuro,
-      primary: AppColores.oscuro,
-      secondary: AppColores.principal,
+    final colorScheme = ColorScheme.dark(
+      primary: AppColores.principal,
+      secondary: AppColores.dorado,
       surface: AppColores.tarjeta,
+      error: AppColores.error,
+      onPrimary: Colors.white,
+      onSurface: AppColores.texto,
     );
 
     return ThemeData(
       useMaterial3: true,
+      brightness: Brightness.dark,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: AppColores.fondo,
 
-      // Barra superior moderna y limpia
+      // Barra superior moderna y limpia (Dark Mode)
       appBarTheme: const AppBarTheme(
         backgroundColor: AppColores.fondo,
-        foregroundColor: AppColores.oscuro,
+        foregroundColor: AppColores.texto,
         elevation: 0,
         scrolledUnderElevation: 1,
         centerTitle: true,
-        iconTheme: IconThemeData(color: AppColores.oscuro),
+        iconTheme: IconThemeData(color: AppColores.texto),
         titleTextStyle: TextStyle(
-          color: AppColores.oscuro,
+          color: AppColores.texto,
           fontSize: 19,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.2,
         ),
       ),
 
-      // Tarjetas con bordes redondeados y sombra sutil
+      // Tarjetas con bordes redondeados y contraste confortable
       cardTheme: CardThemeData(
         color: AppColores.tarjeta,
         elevation: 0,
@@ -187,7 +240,7 @@ class AppTheme {
       // Campos de texto modernos tipo cápsula rellena
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white,
+        fillColor: AppColores.tarjeta,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 14,
@@ -202,7 +255,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadios.campo),
-          borderSide: const BorderSide(color: AppColores.oscuro, width: 1.8),
+          borderSide: const BorderSide(color: AppColores.principal, width: 1.8),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadios.campo),
@@ -213,7 +266,7 @@ class AppTheme {
           borderSide: const BorderSide(color: AppColores.error, width: 1.8),
         ),
         labelStyle: const TextStyle(color: AppColores.textoSecundario),
-        prefixIconColor: AppColores.oscuro,
+        prefixIconColor: AppColores.principal,
       ),
 
       // Botones elevados con altura confortable y esquinas redondeadas
@@ -246,7 +299,7 @@ class AppTheme {
 
       // Barra de navegación inferior
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColores.tarjeta,
         elevation: 1,
         indicatorColor: AppColores.suave,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
@@ -254,7 +307,7 @@ class AppTheme {
             return const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.bold,
-              color: AppColores.oscuro,
+              color: AppColores.principal,
             );
           }
           return const TextStyle(
@@ -264,25 +317,36 @@ class AppTheme {
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const IconThemeData(color: AppColores.oscuro);
+            return const IconThemeData(color: AppColores.principal);
           }
           return const IconThemeData(color: AppColores.textoSecundario);
         }),
       ),
 
-      // Diálogos redondeados
+      // Diálogos redondeados en tema oscuro
       dialogTheme: DialogThemeData(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColores.tarjeta,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadios.tarjeta),
         ),
       ),
 
+      // Modales inferiores en tema oscuro
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: AppColores.tarjeta,
+        surfaceTintColor: Colors.transparent,
+      ),
+
       // Snackbars flotantes y suaves
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        backgroundColor: AppColores.tarjeta,
+        contentTextStyle: const TextStyle(color: AppColores.texto),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: AppColores.divisor),
+        ),
       ),
     );
   }

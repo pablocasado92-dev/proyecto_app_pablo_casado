@@ -286,6 +286,41 @@ class _HomeViewState extends State<HomeView> {
                 ),
               ),
 
+              const SizedBox(height: 16),
+
+              // Banner / Botón de Mazos MTG
+              Card(
+                color: AppColores.suave,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadios.campo),
+                  side: const BorderSide(color: AppColores.divisor),
+                ),
+                child: ListTile(
+                  leading: const Icon(
+                    Icons.style_outlined,
+                    color: AppColores.oscuro,
+                    size: 28,
+                  ),
+                  title: const Text(
+                    'Biblioteca de Mazos MTG',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColores.oscuro,
+                    ),
+                  ),
+                  subtitle: const Text(
+                    'Gestiona tus barajas clasificadas por formatos',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  trailing: const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 16,
+                  ),
+                  onTap: () {
+                    Navigator.pushNamed(context, '/mazos');
+                  },
+                ),
+              ),
               const SizedBox(height: 20),
 
               // Accesos rápidos limpios y modernos

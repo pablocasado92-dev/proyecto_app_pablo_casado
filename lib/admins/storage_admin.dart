@@ -137,4 +137,24 @@ class StorageAdmin {
     final procesada = await procesarYComprimirEnIsolate(f);
     return await subirBytesAvatar(procesada.bytesComprimidos, userUid);
   }
+
+  /// Vacía de forma recursiva los avatares almacenados en Firebase Storage en `usuarios/`
+  Future<int> vaciarAvataresStorage() async {
+    int eliminados = 0;
+    try {
+      final rootRef = storage.ref().child("usuarios");
+      final listResult = await rootRef.listAll();
+      for (final prefix in listResult.prefixes) {
+        final subList = await prefix.child("imagenes").listAll();
+        for (final item in subList.items) {
+          await item.delete();
+          eliminados++;
+        }
+      }
+      debugPrint("Storage: eliminados $eliminados avatares de usuarios.");
+    } catch (e) {
+      debugPrint("Aviso al vaciar Storage: $e");
+    }
+    return eliminados;
+  }
 }

@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
+import '../fb_objects/partida.dart';
 import '../fb_objects/perfil.dart';
+import 'storage_admin.dart';
 
 /// DTO que encapsula el resultado de una consulta paginada de perfiles
 class ResultadoPaginacionPerfil {
@@ -160,7 +162,7 @@ class QueriesAdmin {
       final batch = db.batch();
       final ahora = DateTime.now();
 
-      // 20 perfiles distribuidos a lo largo del eje Madrid - Corredor del Henares - Guadalajara
+      // 20 duelistas MTG distribuidos a lo largo del eje Madrid - Corredor del Henares - Guadalajara
       final List<Map<String, dynamic>> perfilesMock = [
         {
           "name": "Alejandro Sanz",
@@ -171,6 +173,10 @@ class QueriesAdmin {
           // Madrid - Puerta del Sol / Centro
           "lat": 40.4168,
           "lng": -3.7038,
+          "formatos": ["Commander", "Modern"],
+          "nivel": "Competitivo",
+          "bio":
+              "Jugador veterano de Modern (Izzet Murktide) y Commander casual.",
         },
         {
           "name": "Beatriz Morales",
@@ -181,6 +187,9 @@ class QueriesAdmin {
           // Madrid - Parque del Retiro
           "lat": 40.4153,
           "lng": -3.6844,
+          "formatos": ["Commander", "Pauper"],
+          "nivel": "Casual",
+          "bio": "Amante del lore de Ravnica y de partidas amistosas de Commander en parques.",
         },
         {
           "name": "Carlos Ruiz",
@@ -191,6 +200,9 @@ class QueriesAdmin {
           // Madrid - Plaza de Castilla / Chamartín
           "lat": 40.4665,
           "lng": -3.6892,
+          "formatos": ["Pioneer", "Standard"],
+          "nivel": "Competitivo",
+          "bio": "Regular de Store Championships y torneos locales de tienda en Madrid.",
         },
         {
           "name": "Diana Navarro",
@@ -201,6 +213,9 @@ class QueriesAdmin {
           // Madrid - Moncloa
           "lat": 40.4350,
           "lng": -3.7190,
+          "formatos": ["Commander", "Draft"],
+          "nivel": "Iniciación",
+          "bio": "Empecé con el kit de inicio de Bloomburrow. Buscando playgroup universitario.",
         },
         {
           "name": "Eduardo Ramos",
@@ -211,6 +226,9 @@ class QueriesAdmin {
           // Madrid - Vallecas
           "lat": 40.3920,
           "lng": -3.6580,
+          "formatos": ["Premodern", "Legacy"],
+          "nivel": "Competitivo",
+          "bio": "Jugando desde 1996. Especialista en formatos Eternal y mazos antiguos.",
         },
         {
           "name": "Fátima Castro",
@@ -221,6 +239,9 @@ class QueriesAdmin {
           // Corredor del Henares - Coslada Centro
           "lat": 40.4260,
           "lng": -3.5650,
+          "formatos": ["Commander", "Modern"],
+          "nivel": "Casual",
+          "bio": "Mazo favorito: Atraxa Superfriends. Lista para jugar entre semana en Coslada.",
         },
         {
           "name": "Guillermo Gil",
@@ -231,6 +252,9 @@ class QueriesAdmin {
           // Corredor del Henares - San Fernando de Henares
           "lat": 40.4250,
           "lng": -3.5350,
+          "formatos": ["Pauper", "Commander"],
+          "nivel": "Casual",
+          "bio": "Fanático de las comunes de Pauper (Burn, Kuldotha) y partidas distendidas.",
         },
         {
           "name": "Helena Ortiz",
@@ -241,6 +265,9 @@ class QueriesAdmin {
           // Corredor del Henares - Torrejón de Ardoz (Plaza Mayor)
           "lat": 40.4570,
           "lng": -3.4780,
+          "formatos": ["Commander", "Standard"],
+          "nivel": "Iniciación",
+          "bio": "Organizo quedadas de Commander en Torrejón. Nuevos jugadores bienvenidos.",
         },
         {
           "name": "Ignacio Vega",
@@ -251,6 +278,10 @@ class QueriesAdmin {
           // Corredor del Henares - Torrejón de Ardoz (Parque Europa)
           "lat": 40.4485,
           "lng": -3.4680,
+          "formatos": ["Modern", "Pioneer"],
+          "nivel": "Competitivo",
+          "bio":
+              "Testeo competitivo para Regional Championship Qualifiers (RCQ).",
         },
         {
           "name": "Julia Méndez",
@@ -261,6 +292,9 @@ class QueriesAdmin {
           // Corredor del Henares - Alcalá de Henares (Plaza de Cervantes)
           "lat": 40.4818,
           "lng": -3.3644,
+          "formatos": ["Commander", "Draft"],
+          "nivel": "Casual",
+          "bio": "Siempre disponible para un draft de fin de semana o una mesa de 4 en Alcalá.",
         },
         {
           "name": "Kevin Lozano",
@@ -271,6 +305,9 @@ class QueriesAdmin {
           // Corredor del Henares - Alcalá de Henares (La Garena)
           "lat": 40.4860,
           "lng": -3.3850,
+          "formatos": ["Modern", "Legacy"],
+          "nivel": "Competitivo",
+          "bio": "Juego Yawgmoth en Modern y Death & Taxes en Legacy.",
         },
         {
           "name": "Laura Serrano",
@@ -281,6 +318,10 @@ class QueriesAdmin {
           // Corredor del Henares - Alcalá de Henares (Espartales)
           "lat": 40.5050,
           "lng": -3.3600,
+          "formatos": ["Commander"],
+          "nivel": "Casual",
+          "bio":
+              "Tengo 5 barajas de Commander preparadas (nivel de poder 6-7).",
         },
         {
           "name": "Manuel Delgado",
@@ -291,6 +332,9 @@ class QueriesAdmin {
           // Corredor del Henares - Alcalá de Henares (Campus Universidad)
           "lat": 40.5120,
           "lng": -3.3480,
+          "formatos": ["Premodern", "Commander"],
+          "nivel": "Casual",
+          "bio": "Planeswalker de la vieja escuela. Me gusta probar comandantes poco habituales.",
         },
         {
           "name": "Nuria Gallego",
@@ -301,6 +345,9 @@ class QueriesAdmin {
           // Corredor del Henares - Meco
           "lat": 40.5520,
           "lng": -3.3280,
+          "formatos": ["Pauper", "Standard"],
+          "nivel": "Iniciación",
+          "bio": "Disfruto los mazos de control y aprender las mecánicas de cada colección.",
         },
         {
           "name": "Óscar Iglesias",
@@ -311,6 +358,9 @@ class QueriesAdmin {
           // Corredor del Henares - Azuqueca de Henares (Estación)
           "lat": 40.5640,
           "lng": -3.2680,
+          "formatos": ["Modern", "Commander"],
+          "nivel": "Competitivo",
+          "bio": "Constante viajero en tren entre Guadalajara y Madrid buscando torneos.",
         },
         {
           "name": "Patricia Marín",
@@ -321,6 +371,9 @@ class QueriesAdmin {
           // Corredor del Henares - Azuqueca de Henares (Vallehermoso)
           "lat": 40.5730,
           "lng": -3.2550,
+          "formatos": ["Commander", "Draft"],
+          "nivel": "Casual",
+          "bio": "Cubo draft personal y tardes de Commander entre amigos en Azuqueca.",
         },
         {
           "name": "Quique Vidal",
@@ -331,6 +384,10 @@ class QueriesAdmin {
           // Corredor del Henares - Alovera
           "lat": 40.5960,
           "lng": -3.2480,
+          "formatos": ["Pioneer", "Standard"],
+          "nivel": "Iniciación",
+          "bio":
+              "Explorando MTG Arena y buscando dar el salto a cartas físicas.",
         },
         {
           "name": "Rocío Medina",
@@ -341,6 +398,9 @@ class QueriesAdmin {
           // Corredor del Henares - Cabanillas del Campo
           "lat": 40.6380,
           "lng": -3.2340,
+          "formatos": ["Commander", "Modern"],
+          "nivel": "Casual",
+          "bio": "Juego mazos temáticos de elfos y dragones. Buena onda y diversión asegurada.",
         },
         {
           "name": "Sergio Cano",
@@ -351,6 +411,9 @@ class QueriesAdmin {
           // Guadalajara - Palacio del Infantado
           "lat": 40.6360,
           "lng": -3.1690,
+          "formatos": ["Legacy", "Modern"],
+          "nivel": "Competitivo",
+          "bio": "Comunidad MTG Guadalajara. Coordinador de eventos en el club local.",
         },
         {
           "name": "Teresa Blanco",
@@ -361,6 +424,9 @@ class QueriesAdmin {
           // Guadalajara - Plaza Mayor / Centro
           "lat": 40.6330,
           "lng": -3.1670,
+          "formatos": ["Commander", "Pauper"],
+          "nivel": "Casual",
+          "bio": "Commander tribal de gatos y vampiros. Siempre con barajas de sobra para prestar.",
         },
       ];
 
@@ -389,13 +455,18 @@ class QueriesAdmin {
           "fechaPosicion": Timestamp.fromDate(fechaReg),
           "urlAvatar": null,
           "avatarBase64": null,
+          "formatosPreferidos": mock["formatos"] ?? ["Commander"],
+          "nivelJuego": mock["nivel"] ?? "Casual",
+          "biografiaMTG":
+              mock["bio"] ?? "Planeswalker activo en la comunidad MTG",
         }, SetOptions(merge: true));
         creados++;
       }
 
       await batch.commit();
+      await sembrarPartidasPrueba();
       debugPrint(
-        "Sembrado completado: $creados perfiles de prueba creados o actualizados.",
+        "Sembrado completado: $creados perfiles y mesas MTG creados o actualizados.",
       );
       return creados;
     } catch (e) {
@@ -418,12 +489,155 @@ class QueriesAdmin {
         eliminados++;
       }
 
+      // Eliminar también las partidas mock
+      for (int i = 1; i <= 4; i++) {
+        final docRef = db.collection("Partidas").doc("partida_mock_0$i");
+        batch.delete(docRef);
+      }
+
       await batch.commit();
-      debugPrint("Eliminados $eliminados perfiles mock de prueba.");
+      debugPrint(
+        "Eliminados $eliminados perfiles mock de prueba y partidas mock.",
+      );
       return eliminados;
     } catch (e) {
       debugPrint("Error al eliminar perfiles mock: $e");
       rethrow;
+    }
+  }
+
+  /// Sembrado de partidas y mesas temáticas de MTG en tiendas y clubes locales
+  Future<int> sembrarPartidasPrueba() async {
+    try {
+      final batch = db.batch();
+      final ahora = DateTime.now();
+
+      final List<Map<String, dynamic>> partidasMock = [
+        {
+          "id": "partida_mock_01",
+          "titulo": "Mesa Commander Casual 4P",
+          "formato": "Commander",
+          "creadorUID": "mock_user_01",
+          "creadorNombre": "Alejandro Sanz",
+          "maxJugadores": 4,
+          "jugadoresUIDs": ["mock_user_01", "mock_user_06"],
+          "fechaHora": Timestamp.fromDate(ahora.add(const Duration(hours: 4))),
+          "ubicacionNombre": "Tienda Generación X (Madrid Centro)",
+          "posicion": const GeoPoint(40.4200, -3.7050),
+          "esTorneo": false,
+          "estado": "abierta",
+          "descripcion": "Nivel de poder 6-7. Rule 0 amistosa sin combos infinitos turno 3.",
+        },
+        {
+          "id": "partida_mock_02",
+          "titulo": "Torneo Modern Semanal",
+          "formato": "Modern",
+          "creadorUID": "mock_user_03",
+          "creadorNombre": "Carlos Ruiz",
+          "maxJugadores": 16,
+          "jugadoresUIDs": ["mock_user_03", "mock_user_11", "mock_user_15"],
+          "fechaHora": Timestamp.fromDate(
+            ahora.add(const Duration(days: 1, hours: 2)),
+          ),
+          "ubicacionNombre": "El Duende Juegos (Alcalá de Henares)",
+          "posicion": const GeoPoint(40.4830, -3.3660),
+          "esTorneo": true,
+          "estado": "abierta",
+          "descripcion":
+              "Suizo 4 rondas. Premios en sobres de Modern Horizons 3.",
+        },
+        {
+          "id": "partida_mock_03",
+          "titulo": "Pauper League & Quedada",
+          "formato": "Pauper",
+          "creadorUID": "mock_user_07",
+          "creadorNombre": "Guillermo Gil",
+          "maxJugadores": 8,
+          "jugadoresUIDs": ["mock_user_07", "mock_user_14"],
+          "fechaHora": Timestamp.fromDate(ahora.add(const Duration(days: 2))),
+          "ubicacionNombre": "Club MTG Henares (Torrejón de Ardoz)",
+          "posicion": const GeoPoint(40.4580, -3.4750),
+          "esTorneo": false,
+          "estado": "abierta",
+          "descripcion": "Trae tus barajas de comunes favoritas para testear.",
+        },
+        {
+          "id": "partida_mock_04",
+          "titulo": "Commander Pod Nocturno",
+          "formato": "Commander",
+          "creadorUID": "mock_user_19",
+          "creadorNombre": "Sergio Cano",
+          "maxJugadores": 4,
+          "jugadoresUIDs": ["mock_user_19", "mock_user_20"],
+          "fechaHora": Timestamp.fromDate(ahora.add(const Duration(hours: 6))),
+          "ubicacionNombre": "Asociación Juvenil Guadalajara",
+          "posicion": const GeoPoint(40.6350, -3.1680),
+          "esTorneo": false,
+          "estado": "abierta",
+          "descripcion": "Mesa abierta para terminar la semana jugando casual.",
+        },
+      ];
+
+      for (final p in partidasMock) {
+        final docRef = db.collection("Partidas").doc(p["id"] as String);
+        batch.set(docRef, {
+          "titulo": p["titulo"],
+          "formato": p["formato"],
+          "creadorUID": p["creadorUID"],
+          "creadorNombre": p["creadorNombre"],
+          "maxJugadores": p["maxJugadores"],
+          "jugadoresUIDs": p["jugadoresUIDs"],
+          "fechaHora": p["fechaHora"],
+          "ubicacionNombre": p["ubicacionNombre"],
+          "posicion": p["posicion"],
+          "esTorneo": p["esTorneo"],
+          "estado": p["estado"],
+          "descripcion": p["descripcion"],
+        }, SetOptions(merge: true));
+      }
+
+      await batch.commit();
+      debugPrint(
+        "Sembradas ${partidasMock.length} mesas/torneos MTG de prueba.",
+      );
+      return partidasMock.length;
+    } catch (e) {
+      debugPrint("Error sembrando partidas de prueba: $e");
+      return 0;
+    }
+  }
+
+  /// Consulta puntual bajo demanda de partidas activas en Firestore (get puntual para coste 0)
+  Future<List<Partida>> consultarPartidasActivas() async {
+    try {
+      final snapshot = await db
+          .collection("Partidas")
+          .withConverter<Partida>(
+            fromFirestore: Partida.fromFirestore,
+            toFirestore: (Partida p, _) => p.toFirestore(),
+          )
+          .where("estado", isEqualTo: "abierta")
+          .get();
+
+      return snapshot.docs.map((d) => d.data()).toList();
+    } catch (e) {
+      debugPrint("Error al consultar partidas: $e");
+      return [];
+    }
+  }
+
+  /// Limpia colecciones de prueba anteriores (mensajes huérfanos o pruebas pasadas)
+  /// y vacía los avatares residuales en Storage para un reinicio limpio.
+  Future<void> reiniciarDatosPrueba() async {
+    try {
+      await eliminarPerfilesSembrados();
+      await sembrarPartidasPrueba();
+      await StorageAdmin().vaciarAvataresStorage();
+      debugPrint(
+        "Colección Perfiles, Partidas y Storage reiniciados con éxito.",
+      );
+    } catch (e) {
+      debugPrint("Aviso al reiniciar datos de prueba: $e");
     }
   }
 }

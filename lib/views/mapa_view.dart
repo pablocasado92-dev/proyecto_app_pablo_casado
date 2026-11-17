@@ -6,6 +6,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../data/data_holder.dart';
+import '../fb_objects/partida.dart';
 import '../ins_lib/bot_bars/ins_bot_bar_style1.dart';
 import '../ins_lib/theme/app_theme.dart';
 
@@ -33,6 +34,7 @@ class _MapaViewState extends State<MapaView> {
 
   List<Perfil> _todosLosPerfiles = [];
   List<PerfilDistanciaDTO> _perfilesCercanos = [];
+  List<Partida> _partidas = [];
 
   // Coordenadas por defecto (Madrid - Puerta del Sol) en caso de que el usuario no tenga GPS aún
   static const LatLng _coordMadrid = LatLng(40.4168, -3.7038);
@@ -105,10 +107,15 @@ class _MapaViewState extends State<MapaView> {
             (pEmail.isNotEmpty && contactosConChat.contains(pEmail));
       }).toList();
 
+      // Cargar mesas y torneos MTG activos (get puntual a coste 0)
+      final partidasActivas = await DataHolder.instance.queriesAdmin
+          .consultarPartidasActivas();
+
       if (!mounted) return;
 
       setState(() {
         _todosLosPerfiles = perfiles;
+        _partidas = partidasActivas;
         _cargandoPerfiles = false;
       });
 
@@ -661,6 +668,243 @@ class _MapaViewState extends State<MapaView> {
     );
   }
 
+  /// Construye el marcador visual para una mesa o torneo MTG
+  Widget _buildMarcadorPartida(Partida partida) {
+    final bool esTorneo = partida.esTorneo;
+    final colorBase = esTorneo ? Colors.deepPurple : Colors.amber.shade800;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          width: 50,
+          height: 50,
+          padding: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            color: colorBase,
+            shape: BoxShape.circle,
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black38,
+                blurRadius: 6,
+                offset: Offset(0, 3),
+              ),
+            ],
+            border: Border.all(color: Colors.white, width: 2),
+          ),
+          child: Center(
+            child: Icon(
+              esTorneo
+                  ? Icons.emoji_events_rounded
+                  : Icons.table_restaurant_rounded,
+              color: Colors.white,
+              size: 26,
+            ),
+          ),
+        ),
+        Positioned(
+          bottom: -4,
+          left: -4,
+          right: -4,
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              decoration: BoxDecoration(
+                color: AppColores.oscuro,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.white, width: 1),
+              ),
+              child: Text(
+                partida.formato,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 8,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Muestra el modal con el detalle completo de una mesa de juego o torneo MTG
+  void _mostrarDetallePartida(Partida partida) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppRadios.cabecera),
+        ),
+      ),
+      builder: (ctx) {
+        final fechaDT = partida.fechaHora.toDate();
+        final horaStr =
+            '${fechaDT.day.toString().padLeft(2, '0')}/${fechaDT.month.toString().padLeft(2, '0')} ${fechaDT.hour.toString().padLeft(2, '0')}:${fechaDT.minute.toString().padLeft(2, '0')}';
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: AppColores.divisor,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: partida.esTorneo
+                            ? Colors.deepPurple.shade50
+                            : Colors.amber.shade50,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: partida.esTorneo
+                              ? Colors.deepPurple
+                              : Colors.amber.shade800,
+                        ),
+                      ),
+                      child: Icon(
+                        partida.esTorneo
+                            ? Icons.emoji_events_rounded
+                            : Icons.table_restaurant_rounded,
+                        color: partida.esTorneo
+                            ? Colors.deepPurple
+                            : Colors.amber.shade800,
+                        size: 30,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            partida.titulo,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              color: AppColores.texto,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Wrap(
+                            spacing: 6,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColores.oscuro,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  partida.formato,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: partida.estaLlena
+                                      ? Colors.red.shade100
+                                      : Colors.green.shade100,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  partida.estaLlena
+                                      ? 'Mesa Completa'
+                                      : '${partida.plazasLibres} plazas libres',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: partida.estaLlena
+                                        ? Colors.red.shade900
+                                        : Colors.green.shade900,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(
+                    Icons.storefront_rounded,
+                    color: AppColores.oscuro,
+                  ),
+                  title: Text(partida.ubicacionNombre),
+                  subtitle: Text('Organiza: ${partida.creadorNombre}'),
+                ),
+                ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(
+                    Icons.schedule_rounded,
+                    color: AppColores.oscuro,
+                  ),
+                  title: Text('Fecha y hora: $horaStr'),
+                  subtitle: Text(
+                    partida.descripcion ?? 'Sin restricciones adicionales.',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    if (partida.creadorUID.isNotEmpty) {
+                      Navigator.pushNamed(
+                        context,
+                        '/chat',
+                        arguments: partida.creadorUID,
+                      );
+                    }
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColores.oscuro,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  icon: const Icon(Icons.chat_bubble_outline_rounded),
+                  label: const Text('Contactar con Organizador'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   /// Construye el mapa interactivo con OpenStreetMap y marcadores
   Widget _buildMapaView() {
     final miPerfil = DataHolder.instance.perfilUsuario;
@@ -706,6 +950,21 @@ class _MapaViewState extends State<MapaView> {
           ),
         );
       }
+    }
+
+    // 3. Marcadores de Mesas y Torneos de Magic (Partidas)
+    for (final partida in _partidas) {
+      markers.add(
+        Marker(
+          point: LatLng(partida.posicion.latitude, partida.posicion.longitude),
+          width: 56,
+          height: 56,
+          child: GestureDetector(
+            onTap: () => _mostrarDetallePartida(partida),
+            child: _buildMarcadorPartida(partida),
+          ),
+        ),
+      );
     }
 
     return Stack(
