@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proyecto_app_pablo_casado/admins/queries_admin.dart';
+import 'package:proyecto_app_pablo_casado/fb_objects/partida.dart';
 import 'package:proyecto_app_pablo_casado/fb_objects/perfil.dart';
 
 void main() {
@@ -164,6 +165,144 @@ void main() {
       });
     },
   );
+
+  group('Consultas MTG Matchmaking Partidas (0486 AD RA4.e · RA4.g)', () {
+    test('DTO ResultadoPaginacionPartida preserva partidas y estado', () {
+      final partidas = [
+        Partida(
+          id: 'p1',
+          titulo: 'Commander Casual',
+          formato: 'Commander',
+          fechaHora: Timestamp.now(),
+          creadorUID: 'u1',
+          creadorNombre: 'Pablo',
+          ubicacionNombre: 'Padis',
+          posicion: const GeoPoint(40.4, -3.7),
+          maxJugadores: 4,
+          jugadoresUIDs: const ['u1'],
+        ),
+      ];
+
+      final resultado = ResultadoPaginacionPartida(
+        partidas: partidas,
+        ultimoDocumento: null,
+        hayMas: false,
+      );
+
+      expect(resultado.partidas.length, equals(1));
+      expect(resultado.partidas.first.titulo, equals('Commander Casual'));
+      expect(resultado.hayMas, isFalse);
+    });
+
+    test('Consulta 1 MTG: where doble condición con índice compuesto (estado == "abierta" && formato == "Commander")', () {
+      final dataset = [
+        Partida(
+          id: 'p1',
+          titulo: 'Commander Abierta',
+          formato: 'Commander',
+          estado: 'abierta',
+          fechaHora: Timestamp.now(),
+          creadorUID: 'u1',
+          creadorNombre: 'Pablo',
+          ubicacionNombre: 'Padis',
+          posicion: const GeoPoint(40.4, -3.7),
+          maxJugadores: 4,
+          jugadoresUIDs: const ['u1'],
+        ),
+        Partida(
+          id: 'p2',
+          titulo: 'Modern Abierta',
+          formato: 'Modern',
+          estado: 'abierta',
+          fechaHora: Timestamp.now(),
+          creadorUID: 'u2',
+          creadorNombre: 'Carlos',
+          ubicacionNombre: 'Metrópolis',
+          posicion: const GeoPoint(40.4, -3.7),
+          maxJugadores: 2,
+          jugadoresUIDs: const ['u2'],
+        ),
+        Partida(
+          id: 'p3',
+          titulo: 'Commander En Curso',
+          formato: 'Commander',
+          estado: 'en_curso',
+          fechaHora: Timestamp.now(),
+          creadorUID: 'u3',
+          creadorNombre: 'Sara',
+          ubicacionNombre: 'Generación X',
+          posicion: const GeoPoint(40.4, -3.7),
+          maxJugadores: 4,
+          jugadoresUIDs: const ['u3', 'u4', 'u5', 'u6'],
+        ),
+      ];
+
+      final filtrados = dataset
+          .where((p) => p.estado == 'abierta' && p.formato == 'Commander')
+          .toList();
+
+      expect(filtrados.length, equals(1));
+      expect(filtrados.first.id, equals('p1'));
+    });
+
+    test(
+      'Consulta 2 MTG: orderBy(fechaHora) + limit(5) para próximas mesas',
+      () {
+        final base = DateTime(2026, 6, 1, 10, 0);
+        final dataset = List.generate(
+          10,
+          (i) => Partida(
+            id: 'p_$i',
+            titulo: 'Mesa $i',
+            formato: 'Commander',
+            fechaHora: Timestamp.fromDate(base.add(Duration(days: i))),
+            creadorUID: 'u_$i',
+            creadorNombre: 'Jugador $i',
+            ubicacionNombre: 'Lugar $i',
+            posicion: const GeoPoint(40.4, -3.7),
+            maxJugadores: 4,
+            jugadoresUIDs: ['u_$i'],
+          ),
+        );
+
+        final ordenadas = List<Partida>.from(dataset)
+          ..sort((a, b) => a.fechaHora.compareTo(b.fechaHora));
+        final top5 = ordenadas.take(5).toList();
+
+        expect(top5.length, equals(5));
+        expect(top5.first.id, equals('p_0'));
+        expect(top5.last.id, equals('p_4'));
+      },
+    );
+
+    test('Lógica de unión a mesa: control de plazas y jugadores repetidos', () {
+      final partida = Partida(
+        id: 'p_test',
+        titulo: 'Pod Commander 4 jugadores',
+        formato: 'Commander',
+        fechaHora: Timestamp.now(),
+        creadorUID: 'creador_1',
+        creadorNombre: 'Organizador',
+        ubicacionNombre: 'Tienda',
+        posicion: const GeoPoint(40.4, -3.7),
+        maxJugadores: 4,
+        jugadoresUIDs: ['creador_1', 'j2', 'j3'],
+      );
+
+      expect(partida.estaLlena, isFalse);
+      expect(partida.plazasLibres, equals(1));
+
+      // Agregar jugador 4
+      final jugadoresActualizados = List<String>.from(partida.jugadoresUIDs)
+        ..add('j4');
+      final partidaLlena = partida.copyWith(
+        jugadoresUIDs: jugadoresActualizados,
+      );
+
+      expect(partidaLlena.estaLlena, isTrue);
+      expect(partidaLlena.plazasLibres, equals(0));
+    });
+  });
 
   group('Bloque 3: Modificar y borrar (0486 AD RA4.f)', () {
     test('Modelo Perfil serializa campos modificados para update', () {

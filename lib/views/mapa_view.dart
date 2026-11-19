@@ -879,23 +879,90 @@ class _MapaViewState extends State<MapaView> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                FilledButton.icon(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    if (partida.creadorUID.isNotEmpty) {
-                      Navigator.pushNamed(
-                        context,
-                        '/chat',
-                        arguments: partida.creadorUID,
-                      );
-                    }
-                  },
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColores.oscuro,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  icon: const Icon(Icons.chat_bubble_outline_rounded),
-                  label: const Text('Contactar con Organizador'),
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          if (partida.creadorUID.isNotEmpty) {
+                            Navigator.pushNamed(
+                              context,
+                              '/chat',
+                              arguments: partida.creadorUID,
+                            );
+                          }
+                        },
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColores.oscuro,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        icon: const Icon(
+                          Icons.chat_bubble_outline_rounded,
+                          size: 18,
+                        ),
+                        label: const Text('Chatear'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          Navigator.pop(ctx);
+                          final miUid = DataHolder.instance.perfilUsuario.uid;
+                          if (partida.jugadoresUIDs.contains(miUid)) {
+                            await DataHolder.instance.queriesAdmin
+                                .abandonarPartida(
+                                  partidaId: partida.id,
+                                  userUid: miUid,
+                                );
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Has salido de la mesa.'),
+                                ),
+                              );
+                              _cargarDatos();
+                            }
+                          } else if (!partida.estaLlena) {
+                            await DataHolder.instance.queriesAdmin
+                                .unirseAPartida(
+                                  partidaId: partida.id,
+                                  userUid: miUid,
+                                );
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('¡Te has unido a la mesa!'),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                              _cargarDatos();
+                            }
+                          }
+                        },
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: AppColores.principal),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        icon: Icon(
+                          partida.jugadoresUIDs.contains(
+                                DataHolder.instance.perfilUsuario.uid,
+                              )
+                              ? Icons.exit_to_app_rounded
+                              : Icons.group_add_rounded,
+                          size: 18,
+                        ),
+                        label: Text(
+                          partida.jugadoresUIDs.contains(
+                                DataHolder.instance.perfilUsuario.uid,
+                              )
+                              ? 'Salir'
+                              : (partida.estaLlena ? 'Llena' : 'Unirme'),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

@@ -18,14 +18,27 @@ class ResultadoPaginacionPerfil {
   });
 }
 
+/// DTO que encapsula el resultado de una consulta paginada de mesas/partidas MTG
+class ResultadoPaginacionPartida {
+  final List<Partida> partidas;
+  final DocumentSnapshot? ultimoDocumento;
+  final bool hayMas;
+
+  ResultadoPaginacionPartida({
+    required this.partidas,
+    required this.ultimoDocumento,
+    required this.hayMas,
+  });
+}
+
 /// ============================================================================
 /// GESTOR DE CONSULTAS AVANZADAS EN FIRESTORE (QueriesAdmin)
 /// ============================================================================
 /// Implementa las 4 consultas de base de datos requeridas por la rúbrica
-/// (0486 AD RA4.e · RA4.g):
-/// 1. where con 2 condiciones (conectado == true && edad >= min)
-/// 2. orderBy con limit (perfiles registrados más recientes)
-/// 3. rango sobre fecha (fechaRegistro entre dos fechas)
+/// (0486 AD RA4.e · RA4.g) para mesas de juego (Partidas) y perfiles:
+/// 1. where con 2 condiciones (estado == 'abierta' && formato == 'Commander')
+/// 2. orderBy con limit (próximas partidas programadas)
+/// 3. rango sobre fecha (partidas en los próximos días/semana)
 /// 4. paginación con startAfterDocument
 ///
 /// Además provee un mecanismo para asegurar >= 20 documentos de prueba.
@@ -40,6 +53,167 @@ class QueriesAdmin {
         fromFirestore: Perfil.fromFirestore,
         toFirestore: (Perfil p, _) => p.toFirestore(),
       );
+
+  /// Referencia a la colección "Partidas" con conversor fuertemente tipado
+  CollectionReference<Partida> get _partidasRef => db
+      .collection("Partidas")
+      .withConverter<Partida>(
+        fromFirestore: Partida.fromFirestore,
+        toFirestore: (Partida p, _) => p.toFirestore(),
+      );
+
+  // ==========================================================================
+  // CONSULTAS AVANZADAS DE MESAS MTG (Partidas) — 0486 AD RA4.e · RA4.g
+  // ==========================================================================
+
+  /// CONSULTA 1: where con 2 condiciones (estado y formato MTG)
+  /// Requiere índice compuesto en firestore.indexes.json:
+  ///   colección "Partidas", campos: estado (ASC), formato (ASC)
+  Future<List<Partida>> consultarPartidasPorEstadoYFormato({
+    String estado = 'abierta',
+    String formato = 'Commander',
+  }) async {
+    try {
+      final querySnapshot = await _partidasRef
+          .where("estado", isEqualTo: estado)
+          .where("formato", isEqualTo: formato)
+          .get();
+
+      return querySnapshot.docs.map((doc) => doc.data()).toList();
+    } catch (e) {
+      debugPrint("Error en consulta 1 partidas (where doble condición): $e");
+      rethrow;
+    }
+  }
+
+  /// CONSULTA 2: orderBy con limit (próximas N partidas cronológicamente)
+  Future<List<Partida>> consultarProximasPartidas({int limite = 5}) async {
+    try {
+      final querySnapshot = await _partidasRef
+          .where("estado", isEqualTo: "abierta")
+          .orderBy("fechaHora", descending: false)
+          .limit(limite)
+          .get();
+
+      return querySnapshot.docs.map((doc) => doc.data()).toList();
+    } catch (e) {
+      debugPrint("Error en consulta 2 partidas (orderBy + limit): $e");
+      rethrow;
+    }
+  }
+
+  /// CONSULTA 3: Rango sobre Timestamp (partidas entre dos fechas)
+  Future<List<Partida>> consultarPartidasPorRangoFechas({
+    required DateTime inicio,
+    required DateTime fin,
+  }) async {
+    try {
+      final tsInicio = Timestamp.fromDate(inicio);
+      final tsFin = Timestamp.fromDate(fin);
+
+      final querySnapshot = await _partidasRef
+          .where("fechaHora", isGreaterThanOrEqualTo: tsInicio)
+          .where("fechaHora", isLessThanOrEqualTo: tsFin)
+          .orderBy("fechaHora", descending: false)
+          .get();
+
+      return querySnapshot.docs.map((doc) => doc.data()).toList();
+    } catch (e) {
+      debugPrint("Error en consulta 3 partidas (rango fecha): $e");
+      rethrow;
+    }
+  }
+
+  /// CONSULTA 4: Paginación con startAfterDocument de mesas MTG
+  Future<ResultadoPaginacionPartida> consultarPartidasPaginadas({
+    DocumentSnapshot? ultimoDocumento,
+    int limite = 5,
+  }) async {
+    try {
+      Query<Partida> query = _partidasRef.orderBy("titulo").limit(limite);
+
+      if (ultimoDocumento != null) {
+        query = query.startAfterDocument(ultimoDocumento);
+      }
+
+      final querySnapshot = await query.get();
+      final List<Partida> partidas = querySnapshot.docs
+          .map((doc) => doc.data())
+          .toList();
+
+      final DocumentSnapshot? nuevoUltimo = querySnapshot.docs.isNotEmpty
+          ? querySnapshot.docs.last
+          : null;
+
+      final bool hayMas = querySnapshot.docs.length == limite;
+
+      return ResultadoPaginacionPartida(
+        partidas: partidas,
+        ultimoDocumento: nuevoUltimo,
+        hayMas: hayMas,
+      );
+    } catch (e) {
+      debugPrint("Error en consulta 4 partidas (paginación): $e");
+      rethrow;
+    }
+  }
+
+  /// Permite a un jugador unirse a una mesa abierta si hay plazas disponibles
+  Future<bool> unirseAPartida({
+    required String partidaId,
+    required String userUid,
+  }) async {
+    try {
+      final docRef = db.collection("Partidas").doc(partidaId);
+      final snapshot = await docRef.get();
+      if (!snapshot.exists) return false;
+
+      final data = snapshot.data();
+      final List<dynamic> jugadores = data?['jugadoresUIDs'] ?? [];
+      final int maxJugadores = (data?['maxJugadores'] as num?)?.toInt() ?? 4;
+
+      if (jugadores.contains(userUid)) return true; // Ya apuntado
+      if (jugadores.length >= maxJugadores) return false; // Mesa llena
+
+      await docRef.update({
+        "jugadoresUIDs": FieldValue.arrayUnion([userUid]),
+      });
+      return true;
+    } catch (e) {
+      debugPrint("Error al unirse a la partida: $e");
+      return false;
+    }
+  }
+
+  /// Permite a un jugador desapuntarse de una mesa
+  Future<bool> abandonarPartida({
+    required String partidaId,
+    required String userUid,
+  }) async {
+    try {
+      final docRef = db.collection("Partidas").doc(partidaId);
+      await docRef.update({
+        "jugadoresUIDs": FieldValue.arrayRemove([userUid]),
+      });
+      return true;
+    } catch (e) {
+      debugPrint("Error al abandonar partida: $e");
+      return false;
+    }
+  }
+
+  /// Crea o actualiza una partida en Firestore
+  Future<void> guardarPartida(Partida partida) async {
+    await db
+        .collection("Partidas")
+        .doc(partida.id)
+        .set(partida.toFirestore(), SetOptions(merge: true));
+  }
+
+  /// Elimina una partida de Firestore
+  Future<void> eliminarPartida(String partidaId) async {
+    await db.collection("Partidas").doc(partidaId).delete();
+  }
 
   // ==========================================================================
   // CONSULTA 1: where con 2 condiciones (0486 AD RA4.e · RA4.g)
@@ -506,7 +680,7 @@ class QueriesAdmin {
     }
   }
 
-  /// Sembrado de partidas y mesas temáticas de MTG en tiendas y clubes locales
+  /// Sembrado de 20 partidas y mesas temáticas de MTG en tiendas y clubes locales
   Future<int> sembrarPartidasPrueba() async {
     try {
       final batch = db.batch();
@@ -575,6 +749,274 @@ class QueriesAdmin {
           "esTorneo": false,
           "estado": "abierta",
           "descripcion": "Mesa abierta para terminar la semana jugando casual.",
+        },
+        {
+          "id": "partida_mock_05",
+          "titulo": "Draft Booster Chaos",
+          "formato": "Draft/Limited",
+          "creadorUID": "mock_user_05",
+          "creadorNombre": "Eduardo Blanco",
+          "maxJugadores": 8,
+          "jugadoresUIDs": ["mock_user_05", "mock_user_02", "mock_user_08"],
+          "fechaHora": Timestamp.fromDate(ahora.add(const Duration(days: 3))),
+          "ubicacionNombre": "Itaca Freak Shop (Madrid Moncloa)",
+          "posicion": const GeoPoint(40.4350, -3.7180),
+          "esTorneo": true,
+          "estado": "abierta",
+          "descripcion":
+              "Draft de 3 sobres de colecciones variadas. Premios a top 3.",
+        },
+        {
+          "id": "partida_mock_06",
+          "titulo": "Pioneer Store Championship",
+          "formato": "Pioneer",
+          "creadorUID": "mock_user_09",
+          "creadorNombre": "Irene Lozano",
+          "maxJugadores": 12,
+          "jugadoresUIDs": ["mock_user_09", "mock_user_13", "mock_user_17"],
+          "fechaHora": Timestamp.fromDate(ahora.add(const Duration(days: 4))),
+          "ubicacionNombre": "Padis Store (Madrid Chamberí)",
+          "posicion": const GeoPoint(40.4390, -3.7020),
+          "esTorneo": true,
+          "estado": "abierta",
+          "descripcion": "Torneo oficial WPN Pioneer con promos exclusivas.",
+        },
+        {
+          "id": "partida_mock_07",
+          "titulo": "Iniciación MTG y Barajas Precon",
+          "formato": "Standard",
+          "creadorUID": "mock_user_04",
+          "creadorNombre": "Diana Navarro",
+          "maxJugadores": 6,
+          "jugadoresUIDs": ["mock_user_04"],
+          "fechaHora": Timestamp.fromDate(
+            ahora.add(const Duration(days: 1, hours: 5)),
+          ),
+          "ubicacionNombre": "Ludoteca Coslada Juega (Coslada)",
+          "posicion": const GeoPoint(40.4260, -3.5650),
+          "esTorneo": false,
+          "estado": "abierta",
+          "descripcion": "Encuentro pensado para aprender a jugar o probar barajas básicas.",
+        },
+        {
+          "id": "partida_mock_08",
+          "titulo": "Commander cEDH High Stakes",
+          "formato": "Commander",
+          "creadorUID": "mock_user_11",
+          "creadorNombre": "Kiko Rivas",
+          "maxJugadores": 4,
+          "jugadoresUIDs": ["mock_user_11", "mock_user_12", "mock_user_15"],
+          "fechaHora": Timestamp.fromDate(
+            ahora.add(const Duration(days: 2, hours: 3)),
+          ),
+          "ubicacionNombre": "MageStore (Alcalá de Henares Casco)",
+          "posicion": const GeoPoint(40.4815, -3.3640),
+          "esTorneo": true,
+          "estado": "abierta",
+          "descripcion":
+              "Tier 1 cEDH. Proxies permitidas según normativa oficial.",
+        },
+        {
+          "id": "partida_mock_09",
+          "titulo": "Premodern Nostalgia Cup",
+          "formato": "Premodern",
+          "creadorUID": "mock_user_13",
+          "creadorNombre": "Manuel Ortega",
+          "maxJugadores": 8,
+          "jugadoresUIDs": ["mock_user_13", "mock_user_01"],
+          "fechaHora": Timestamp.fromDate(ahora.add(const Duration(days: 5))),
+          "ubicacionNombre": "Café Dados & Cartas (Azuqueca de Henares)",
+          "posicion": const GeoPoint(40.5640, -3.2680),
+          "esTorneo": false,
+          "estado": "abierta",
+          "descripcion":
+              "Cartas marco antiguo 1995-2003. Formato clásico entre amigos.",
+        },
+        {
+          "id": "partida_mock_10",
+          "titulo": "Commander Tribal Wars 4P",
+          "formato": "Commander",
+          "creadorUID": "mock_user_02",
+          "creadorNombre": "Beatriz Morales",
+          "maxJugadores": 4,
+          "jugadoresUIDs": ["mock_user_02", "mock_user_10"],
+          "fechaHora": Timestamp.fromDate(
+            ahora.add(const Duration(days: 1, hours: 8)),
+          ),
+          "ubicacionNombre": "Parque del Retiro (Terraza Abierta Madrid)",
+          "posicion": const GeoPoint(40.4153, -3.6844),
+          "esTorneo": false,
+          "estado": "abierta",
+          "descripcion":
+              "Mesas de temática tribal (Elfos, Goblins, Dragones, Zombis).",
+        },
+        {
+          "id": "partida_mock_11",
+          "titulo": "Modern Open Trial",
+          "formato": "Modern",
+          "creadorUID": "mock_user_15",
+          "creadorNombre": "Óscar Iglesias",
+          "maxJugadores": 16,
+          "jugadoresUIDs": ["mock_user_15", "mock_user_03", "mock_user_11"],
+          "fechaHora": Timestamp.fromDate(ahora.add(const Duration(days: 6))),
+          "ubicacionNombre": "Evolution Store (Madrid Nuevos Ministerios)",
+          "posicion": const GeoPoint(40.4460, -3.6920),
+          "esTorneo": true,
+          "estado": "abierta",
+          "descripcion": "Testeo competitivo de banquillo y metajuego moderno.",
+        },
+        {
+          "id": "partida_mock_12",
+          "titulo": "Commander 2 Headed Giant",
+          "formato": "Commander",
+          "creadorUID": "mock_user_06",
+          "creadorNombre": "Fabiola Crespo",
+          "maxJugadores": 4,
+          "jugadoresUIDs": ["mock_user_06", "mock_user_08"],
+          "fechaHora": Timestamp.fromDate(
+            ahora.add(const Duration(days: 2, hours: 6)),
+          ),
+          "ubicacionNombre": "Ludoteca San Fernando (San Fernando de Henares)",
+          "posicion": const GeoPoint(40.4250, -3.5350),
+          "esTorneo": false,
+          "estado": "abierta",
+          "descripcion": "Por parejas compartiendo 60 vidas. Muy divertido y colaborativo.",
+        },
+        {
+          "id": "partida_mock_13",
+          "titulo": "Draft Cubo Vintage",
+          "formato": "Draft/Limited",
+          "creadorUID": "mock_user_16",
+          "creadorNombre": "Patricia Marín",
+          "maxJugadores": 8,
+          "jugadoresUIDs": ["mock_user_16", "mock_user_19", "mock_user_05"],
+          "fechaHora": Timestamp.fromDate(ahora.add(const Duration(days: 7))),
+          "ubicacionNombre": "Espacio Joven (Alovera)",
+          "posicion": const GeoPoint(40.5960, -3.2480),
+          "esTorneo": false,
+          "estado": "abierta",
+          "descripcion":
+              "Cubo potenciado con cartas icónicas de toda la historia de MTG.",
+        },
+        {
+          "id": "partida_mock_14",
+          "titulo": "Pauper Friday Night",
+          "formato": "Pauper",
+          "creadorUID": "mock_user_14",
+          "creadorNombre": "Nuria Gallego",
+          "maxJugadores": 8,
+          "jugadoresUIDs": ["mock_user_14", "mock_user_07"],
+          "fechaHora": Timestamp.fromDate(
+            ahora.add(const Duration(days: 3, hours: 4)),
+          ),
+          "ubicacionNombre": "Centro Cultural La Estación (Meco)",
+          "posicion": const GeoPoint(40.5520, -3.3280),
+          "esTorneo": false,
+          "estado": "abierta",
+          "descripcion":
+              "Pauper accesible y dinámico. Barajas de préstamo disponibles.",
+        },
+        {
+          "id": "partida_mock_15",
+          "titulo": "Commander Playgroup Alcarria",
+          "formato": "Commander",
+          "creadorUID": "mock_user_20",
+          "creadorNombre": "Tomás Aguilar",
+          "maxJugadores": 4,
+          "jugadoresUIDs": ["mock_user_20"],
+          "fechaHora": Timestamp.fromDate(
+            ahora.add(const Duration(days: 4, hours: 1)),
+          ),
+          "ubicacionNombre": "Cervecería El Rincón MTG (Guadalajara Centro)",
+          "posicion": const GeoPoint(40.6320, -3.1650),
+          "esTorneo": false,
+          "estado": "abierta",
+          "descripcion":
+              "Partidas distendidas mientras tomamos algo. Ambiente amigable.",
+        },
+        {
+          "id": "partida_mock_16",
+          "titulo": "Standard Showdown",
+          "formato": "Standard",
+          "creadorUID": "mock_user_17",
+          "creadorNombre": "Quique Vidal",
+          "maxJugadores": 8,
+          "jugadoresUIDs": ["mock_user_17", "mock_user_09"],
+          "fechaHora": Timestamp.fromDate(
+            ahora.add(const Duration(days: 5, hours: 3)),
+          ),
+          "ubicacionNombre": "Metrópolis Center (Madrid Callao)",
+          "posicion": const GeoPoint(40.4195, -3.7065),
+          "esTorneo": true,
+          "estado": "abierta",
+          "descripcion": "Encuentro de Standard oficial con cartas de las últimas colecciones.",
+        },
+        {
+          "id": "partida_mock_17",
+          "titulo": "Commander Deckbuilding & Test",
+          "formato": "Commander",
+          "creadorUID": "mock_user_08",
+          "creadorNombre": "Helena Ortiz",
+          "maxJugadores": 4,
+          "jugadoresUIDs": ["mock_user_08", "mock_user_04"],
+          "fechaHora": Timestamp.fromDate(
+            ahora.add(const Duration(days: 6, hours: 2)),
+          ),
+          "ubicacionNombre": "Biblioteca María Moliner (Coslada)",
+          "posicion": const GeoPoint(40.4280, -3.5590),
+          "esTorneo": false,
+          "estado": "abierta",
+          "descripcion":
+              "Trae tus barajas recién montadas para testear antes del torneo.",
+        },
+        {
+          "id": "partida_mock_18",
+          "titulo": "Pioneer Weekly Challenge",
+          "formato": "Pioneer",
+          "creadorUID": "mock_user_10",
+          "creadorNombre": "Jorge Santos",
+          "maxJugadores": 10,
+          "jugadoresUIDs": ["mock_user_10", "mock_user_18"],
+          "fechaHora": Timestamp.fromDate(
+            ahora.add(const Duration(days: 7, hours: 1)),
+          ),
+          "ubicacionNombre": "Akira Comics (Madrid Barrio del Pilar)",
+          "posicion": const GeoPoint(40.4780, -3.7080),
+          "esTorneo": true,
+          "estado": "abierta",
+          "descripcion": "Torneo regular de Pioneer en una de las mejores tiendas de Madrid.",
+        },
+        {
+          "id": "partida_mock_19",
+          "titulo": "Mesa Commander Casual Pod B",
+          "formato": "Commander",
+          "creadorUID": "mock_user_18",
+          "creadorNombre": "Rocío Medina",
+          "maxJugadores": 4,
+          "jugadoresUIDs": ["mock_user_18", "mock_user_16"],
+          "fechaHora": Timestamp.fromDate(ahora.add(const Duration(days: 8))),
+          "ubicacionNombre": "Club Social Cabanillas (Cabanillas del Campo)",
+          "posicion": const GeoPoint(40.6380, -3.2340),
+          "esTorneo": false,
+          "estado": "abierta",
+          "descripcion":
+              "Commander distendido, barajas precon modificadas bienvenidas.",
+        },
+        {
+          "id": "partida_mock_20",
+          "titulo": "Torneo Premodern Fin de Mes",
+          "formato": "Premodern",
+          "creadorUID": "mock_user_12",
+          "creadorNombre": "Lorena Campos",
+          "maxJugadores": 16,
+          "jugadoresUIDs": ["mock_user_12", "mock_user_13", "mock_user_03"],
+          "fechaHora": Timestamp.fromDate(ahora.add(const Duration(days: 9))),
+          "ubicacionNombre": "Ateneo Cultural Henares (Alcalá de Henares)",
+          "posicion": const GeoPoint(40.4850, -3.3610),
+          "esTorneo": true,
+          "estado": "abierta",
+          "descripcion":
+              "Torneo especial de cierre de mes. Decklist requerida.",
         },
       ];
 

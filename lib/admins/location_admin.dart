@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:isolate';
 import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
+import '../fb_objects/partida.dart';
 import '../fb_objects/perfil.dart';
 
 /// ============================================================================
@@ -59,24 +61,72 @@ class PerfilDistanciaDTO {
   }
 }
 
-/// Parámetros transferibles al Isolate para ordenación geográfica
+/// ============================================================================
+/// BLOQUE 6 MTG: MODELO TIPADO DE PARTIDA / MESA CON DISTANCIA AL JUGADOR
+/// ============================================================================
+class PartidaDistanciaDTO {
+  final Partida partida;
+  final double distanciaKm;
+
+  PartidaDistanciaDTO({required this.partida, required this.distanciaKm});
+
+  /// Formatea la distancia de manera legible (en metros si < 1 km, en km si >= 1 km)
+  String get distanciaFormateada {
+    if (distanciaKm < 1.0) {
+      final metros = (distanciaKm * 1000).round();
+      return '$metros m';
+    } else {
+      return '${distanciaKm.toStringAsFixed(1)} km';
+    }
+  }
+}
+
+/// Parámetros transferibles al Isolate para ordenación geográfica de perfiles
 class _IsolateDistanceParams {
   final List<Perfil> perfiles;
   final double origenLat;
   final double origenLng;
+  final SendPort sendPort;
 
   _IsolateDistanceParams({
     required this.perfiles,
     required this.origenLat,
     required this.origenLng,
+    required this.sendPort,
   });
 }
 
-/// Worker puro de nivel superior ejecutado en un Isolate secundario (0490 PSP RA2.c)
-List<PerfilDistanciaDTO> _ordenarPerfilesWorker(_IsolateDistanceParams params) {
+/// Parámetros transferibles al Isolate para ordenación geográfica de partidas MTG
+class _IsolatePartidasDistanceParams {
+  final List<Partida> partidas;
+  final double origenLat;
+  final double origenLng;
+  final SendPort sendPort;
+
+  _IsolatePartidasDistanceParams({
+    required this.partidas,
+    required this.origenLat,
+    required this.origenLng,
+    required this.sendPort,
+  });
+}
+
+/// Worker puro ejecutado en un Isolate secundario con comunicación bidireccional (0490 PSP RA2.c / RA2.e).
+/// Emite mensajes de porcentaje y estado mediante SendPort directamente hacia el hilo principal.
+void _ordenarPerfilesIsolateEntry(_IsolateDistanceParams params) {
+  final sendPort = params.sendPort;
+  final total = params.perfiles.length;
+
+  sendPort.send({
+    'tipo': 'progreso',
+    'porcentaje': 0.1,
+    'mensaje': 'Iniciando cálculo de distancias en Isolate secundario...',
+  });
+
   final List<PerfilDistanciaDTO> lista = [];
 
-  for (final p in params.perfiles) {
+  for (int i = 0; i < total; i++) {
+    final p = params.perfiles[i];
     if (p.posicion != null) {
       final d = LocationAdmin.calcularDistanciaHaversine(
         params.origenLat,
@@ -86,11 +136,73 @@ List<PerfilDistanciaDTO> _ordenarPerfilesWorker(_IsolateDistanceParams params) {
       );
       lista.add(PerfilDistanciaDTO(perfil: p, distanciaKm: d));
     }
+
+    if (total > 0 && (i % (total ~/ 4 + 1) == 0 || i == total - 1)) {
+      final progreso = 0.2 + (0.6 * (i + 1) / total);
+      sendPort.send({
+        'tipo': 'progreso',
+        'porcentaje': progreso,
+        'mensaje':
+            'Calculando distancia Haversine (${i + 1}/$total perfiles)...',
+      });
+    }
   }
 
-  // Ordenación ascendente (de menor a mayor distancia)
+  sendPort.send({
+    'tipo': 'progreso',
+    'porcentaje': 0.9,
+    'mensaje': 'Ordenando perfiles de menor a mayor proximidad...',
+  });
+
+  // Ordenación ascendente por cercanía
   lista.sort((a, b) => a.distanciaKm.compareTo(b.distanciaKm));
-  return lista;
+
+  sendPort.send({'tipo': 'resultado', 'datos': lista});
+}
+
+/// Worker puro ejecutado en un Isolate secundario para Partidas MTG (0490 PSP RA2.c / RA2.e).
+/// Comunica su avance mediante SendPort al ReceivePort del hilo de la interfaz.
+void _ordenarPartidasIsolateEntry(_IsolatePartidasDistanceParams params) {
+  final sendPort = params.sendPort;
+  final total = params.partidas.length;
+
+  sendPort.send({
+    'tipo': 'progreso',
+    'porcentaje': 0.15,
+    'mensaje': 'Iniciando localización de mesas MTG en Isolate...',
+  });
+
+  final List<PartidaDistanciaDTO> lista = [];
+
+  for (int i = 0; i < total; i++) {
+    final partida = params.partidas[i];
+    final d = LocationAdmin.calcularDistanciaHaversine(
+      params.origenLat,
+      params.origenLng,
+      partida.posicion.latitude,
+      partida.posicion.longitude,
+    );
+    lista.add(PartidaDistanciaDTO(partida: partida, distanciaKm: d));
+
+    if (total > 0 && (i % (total ~/ 3 + 1) == 0 || i == total - 1)) {
+      final progreso = 0.25 + (0.55 * (i + 1) / total);
+      sendPort.send({
+        'tipo': 'progreso',
+        'porcentaje': progreso,
+        'mensaje': 'Calculando distancia geodésica (${i + 1}/$total mesas)...',
+      });
+    }
+  }
+
+  sendPort.send({
+    'tipo': 'progreso',
+    'porcentaje': 0.9,
+    'mensaje': 'Ordenando mesas abiertas por cercanía geográfica...',
+  });
+
+  lista.sort((a, b) => a.distanciaKm.compareTo(b.distanciaKm));
+
+  sendPort.send({'tipo': 'resultado', 'datos': lista});
 }
 
 /// ============================================================================
@@ -100,7 +212,7 @@ class LocationAdmin {
   LocationAdmin();
 
   // ==========================================================================
-  // BLOQUE 6: CÁLCULOS TRIGONOMÉTRICOS Y ORDENACIÓN EN ISOLATE (PSP RA2.c)
+  // BLOQUE 6: CÁLCULOS TRIGONOMÉTRICOS Y ORDENACIÓN EN ISOLATE (PSP RA2.c / RA2.e)
   // ==========================================================================
 
   /// Calcula la distancia ortodrómica en kilómetros entre dos pares de coordenadas
@@ -131,52 +243,175 @@ class LocationAdmin {
 
   static double _gradosARadianes(double grados) => grados * (pi / 180.0);
 
-  /// Ordena síncronamente (útil para tests unitarios directos y benchmarking)
+  /// Ordena síncronamente perfiles (útil para tests unitarios directos y benchmarking)
   static List<PerfilDistanciaDTO> ordenarPerfilesSincrono({
     required List<Perfil> perfiles,
     required double origenLat,
     required double origenLng,
   }) {
-    return _ordenarPerfilesWorker(
-      _IsolateDistanceParams(
-        perfiles: perfiles,
-        origenLat: origenLat,
-        origenLng: origenLng,
-      ),
-    );
+    final List<PerfilDistanciaDTO> lista = [];
+    for (final p in perfiles) {
+      if (p.posicion != null) {
+        final d = calcularDistanciaHaversine(
+          origenLat,
+          origenLng,
+          p.posicion!.latitude,
+          p.posicion!.longitude,
+        );
+        lista.add(PerfilDistanciaDTO(perfil: p, distanciaKm: d));
+      }
+    }
+    lista.sort((a, b) => a.distanciaKm.compareTo(b.distanciaKm));
+    return lista;
+  }
+
+  /// Ordena síncronamente mesas/partidas MTG (útil para tests unitarios directos)
+  static List<PartidaDistanciaDTO> ordenarPartidasSincrono({
+    required List<Partida> partidas,
+    required double origenLat,
+    required double origenLng,
+  }) {
+    final List<PartidaDistanciaDTO> lista = [];
+    for (final p in partidas) {
+      final d = calcularDistanciaHaversine(
+        origenLat,
+        origenLng,
+        p.posicion.latitude,
+        p.posicion.longitude,
+      );
+      lista.add(PartidaDistanciaDTO(partida: p, distanciaKm: d));
+    }
+    lista.sort((a, b) => a.distanciaKm.compareTo(b.distanciaKm));
+    return lista;
   }
 
   /// Ordena los perfiles por distancia al usuario ejecutando el cálculo en un
-  /// ISOLATE SECUNDARIO (compute) para no bloquear el UI thread (0490 PSP RA2.c / RA2.e).
+  /// ISOLATE SECUNDARIO mediante Isolate.spawn y comunicando el progreso real
+  /// a través de SendPort y ReceivePort (0490 PSP RA2.c / RA2.e).
   Future<List<PerfilDistanciaDTO>> ordenarPerfilesPorCercaniaEnIsolate({
     required List<Perfil> perfiles,
     required double origenLat,
     required double origenLng,
     void Function(String estado)? onProgreso,
   }) async {
-    onProgreso?.call(
-      "Iniciando cálculo de distancias en Isolate secundario...",
-    );
+    if (perfiles.isEmpty) return [];
 
-    final params = _IsolateDistanceParams(
-      perfiles: perfiles,
-      origenLat: origenLat,
-      origenLng: origenLng,
-    );
-
-    List<PerfilDistanciaDTO> resultado;
     if (kIsWeb) {
-      // En Flutter Web (JavaScript/Wasm de hilo único), compute se ejecuta en microtask asíncrona
-      resultado = _ordenarPerfilesWorker(params);
-    } else {
-      // En plataformas móviles reales (Android/iOS) compute instancia un Isolate con memoria aislada
-      resultado = await compute(_ordenarPerfilesWorker, params);
+      onProgreso?.call("Calculando distancias en modo Web...");
+      final res = ordenarPerfilesSincrono(
+        perfiles: perfiles,
+        origenLat: origenLat,
+        origenLng: origenLng,
+      );
+      onProgreso?.call("Completado: ${res.length} perfiles ordenados");
+      return res;
     }
 
-    onProgreso?.call(
-      "Cálculo completado: ${resultado.length} perfiles ordenados",
-    );
-    return resultado;
+    final receivePort = ReceivePort();
+    final completer = Completer<List<PerfilDistanciaDTO>>();
+
+    try {
+      final isolate = await Isolate.spawn(
+        _ordenarPerfilesIsolateEntry,
+        _IsolateDistanceParams(
+          perfiles: perfiles,
+          origenLat: origenLat,
+          origenLng: origenLng,
+          sendPort: receivePort.sendPort,
+        ),
+      );
+
+      receivePort.listen((message) {
+        if (message is Map) {
+          final tipo = message['tipo'];
+          if (tipo == 'progreso') {
+            final msg = (message['mensaje'] as String?) ?? '';
+            onProgreso?.call(msg);
+          } else if (tipo == 'resultado') {
+            final res = (message['datos'] as List).cast<PerfilDistanciaDTO>();
+            receivePort.close();
+            isolate.kill(priority: Isolate.immediate);
+            completer.complete(res);
+          }
+        }
+      });
+
+      return await completer.future;
+    } catch (e) {
+      receivePort.close();
+      debugPrint(
+        "Fallback a ordenación síncrona de perfiles por error en isolate: $e",
+      );
+      return ordenarPerfilesSincrono(
+        perfiles: perfiles,
+        origenLat: origenLat,
+        origenLng: origenLng,
+      );
+    }
+  }
+
+  /// Ordena las MESAS DE JUEGO MTG por distancia al usuario ejecutando el cálculo en un
+  /// ISOLATE SECUNDARIO mediante Isolate.spawn y comunicando el avance porcentual real
+  /// a través de SendPort y ReceivePort (0490 PSP RA2.c / RA2.e).
+  Future<List<PartidaDistanciaDTO>> ordenarPartidasPorCercaniaEnIsolate({
+    required List<Partida> partidas,
+    required double origenLat,
+    required double origenLng,
+    void Function(double porcentaje, String estado)? onProgreso,
+  }) async {
+    if (partidas.isEmpty) return [];
+
+    if (kIsWeb) {
+      onProgreso?.call(0.5, "Calculando distancias a mesas MTG...");
+      final res = ordenarPartidasSincrono(
+        partidas: partidas,
+        origenLat: origenLat,
+        origenLng: origenLng,
+      );
+      onProgreso?.call(1.0, "Mesas ordenadas.");
+      return res;
+    }
+
+    final receivePort = ReceivePort();
+    final completer = Completer<List<PartidaDistanciaDTO>>();
+
+    try {
+      final isolate = await Isolate.spawn(
+        _ordenarPartidasIsolateEntry,
+        _IsolatePartidasDistanceParams(
+          partidas: partidas,
+          origenLat: origenLat,
+          origenLng: origenLng,
+          sendPort: receivePort.sendPort,
+        ),
+      );
+
+      receivePort.listen((message) {
+        if (message is Map) {
+          final tipo = message['tipo'];
+          if (tipo == 'progreso') {
+            final pct = (message['porcentaje'] as num?)?.toDouble() ?? 0.0;
+            final msg = (message['mensaje'] as String?) ?? '';
+            onProgreso?.call(pct, msg);
+          } else if (tipo == 'resultado') {
+            final res = (message['datos'] as List).cast<PartidaDistanciaDTO>();
+            receivePort.close();
+            isolate.kill(priority: Isolate.immediate);
+            completer.complete(res);
+          }
+        }
+      });
+
+      return await completer.future;
+    } catch (e) {
+      receivePort.close();
+      debugPrint("Fallback síncrono por error en isolate de partidas: $e");
+      return ordenarPartidasSincrono(
+        partidas: partidas,
+        origenLat: origenLat,
+        origenLng: origenLng,
+      );
+    }
   }
 
   // ==========================================================================

@@ -41,11 +41,13 @@ service cloud.firestore {
         request.resource.data.remitenteUID == request.auth.token.email
       );
 
-      // Permite modificar si es el autor (ej: editar mensaje) o destinatario (marcar leído: leido = true)
+      // Permite modificar si es el autor (editar mensaje) o ÚNICAMENTE el destinatario legítimo (marcar como leído)
       allow update: if isAuthenticated() && (
-        resource.data.remitenteUID == request.auth.uid ||
-        resource.data.remitenteUID == request.auth.token.email ||
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['leido'])
+        (resource.data.remitenteUID == request.auth.uid ||
+         resource.data.remitenteUID == request.auth.token.email) ||
+        ((resource.data.destinatarioUID == request.auth.uid ||
+          resource.data.destinatarioUID == request.auth.token.email) &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['leido', 'leidoPor']))
       );
 
       // Solo el remitente del mensaje puede eliminarlo (Bloque 3 - 0486 RA4.f)

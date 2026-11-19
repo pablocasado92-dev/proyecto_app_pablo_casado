@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart' as firebase_core;
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 /// ============================================================================
@@ -29,16 +30,31 @@ class ImagenProcesadaResult {
 class _IsolateCompressParams {
   final Uint8List rawBytes;
   final int quality;
+  final RootIsolateToken? rootToken;
 
-  _IsolateCompressParams({required this.rawBytes, this.quality = 70});
+  _IsolateCompressParams({
+    required this.rawBytes,
+    this.quality = 70,
+    this.rootToken,
+  });
 }
 
 /// Función pura de nivel superior para ejecutarse de forma aislada en un Isolate (PSP RA2.c).
-/// En plataformas donde flutter_image_compress no dispone de canal de plataforma en isolates puros,
-/// realiza la codificación, escalado y validación de cuota estricta (<300 KB).
+/// Utiliza BackgroundIsolateBinaryMessenger.ensureInitialized con el RootIsolateToken
+/// para asegurar que el canal de plataforma nativo de FlutterImageCompress funcione
+/// correctamente sin errores ni fallbacks descontrolados.
 Future<ImagenProcesadaResult> _procesarBytesEnIsolate(
   _IsolateCompressParams params,
 ) async {
+  // Inicialización del canal binario de plataforma en el hilo secundario
+  if (params.rootToken != null) {
+    try {
+      BackgroundIsolateBinaryMessenger.ensureInitialized(params.rootToken!);
+    } catch (e) {
+      debugPrint("Aviso al inicializar binary messenger en isolate: $e");
+    }
+  }
+
   Uint8List processedBytes;
 
   try {
@@ -52,8 +68,9 @@ Future<ImagenProcesadaResult> _procesarBytesEnIsolate(
       format: CompressFormat.jpeg,
     );
     processedBytes = compressed.isNotEmpty ? compressed : params.rawBytes;
-  } catch (_) {
+  } catch (e) {
     // Fallback defensivo si el isolate no tiene acceso al plugin nativo
+    debugPrint("Aviso: fallback defensivo en isolate de imagen: $e");
     processedBytes = params.rawBytes;
   }
 
@@ -77,7 +94,8 @@ class StorageAdmin {
   StorageAdmin();
 
   /// Procesa y comprime los bytes de [archivo] en un ISOLATE secundario (PSP RA2.c / RA2.e).
-  /// Permite mantener la fluidez de la UI (60/120 fps) y reporta el progreso mediante [onProgreso].
+  /// Captura el RootIsolateToken para que los canales de plataforma nativos funcionen
+  /// en el hilo en segundo plano, manteniendo 60/120 fps constantes en la UI.
   Future<ImagenProcesadaResult> procesarYComprimirEnIsolate(
     XFile archivo, {
     void Function(String estado)? onProgreso,
@@ -87,17 +105,28 @@ class StorageAdmin {
 
     onProgreso?.call("Comprimiendo imagen en hilo secundario (Isolate)...");
 
+    // Captura del token del isolate principal para el canal binario del plugin nativo
+    final RootIsolateToken? rootToken = RootIsolateToken.instance;
+
     ImagenProcesadaResult resultado;
     if (kIsWeb) {
       // En Web (CanvasKit), la compresión se realiza de forma asíncrona no bloqueante
       resultado = await _procesarBytesEnIsolate(
-        _IsolateCompressParams(rawBytes: rawBytes, quality: 70),
+        _IsolateCompressParams(
+          rawBytes: rawBytes,
+          quality: 70,
+          rootToken: null,
+        ),
       );
     } else {
       // En móvil (Android/iOS) delegamos formalmente en compute() (Isolate real con memoria aislada)
       resultado = await compute(
         _procesarBytesEnIsolate,
-        _IsolateCompressParams(rawBytes: rawBytes, quality: 70),
+        _IsolateCompressParams(
+          rawBytes: rawBytes,
+          quality: 70,
+          rootToken: rootToken,
+        ),
       );
     }
 

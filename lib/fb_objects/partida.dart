@@ -99,6 +99,39 @@ class Partida {
     );
   }
 
+  /// Crea una copia con campos modificados
+  Partida copyWith({
+    String? id,
+    String? titulo,
+    String? formato,
+    String? creadorUID,
+    String? creadorNombre,
+    int? maxJugadores,
+    List<String>? jugadoresUIDs,
+    Timestamp? fechaHora,
+    String? ubicacionNombre,
+    GeoPoint? posicion,
+    bool? esTorneo,
+    String? estado,
+    String? descripcion,
+  }) {
+    return Partida(
+      id: id ?? this.id,
+      titulo: titulo ?? this.titulo,
+      formato: formato ?? this.formato,
+      creadorUID: creadorUID ?? this.creadorUID,
+      creadorNombre: creadorNombre ?? this.creadorNombre,
+      maxJugadores: maxJugadores ?? this.maxJugadores,
+      jugadoresUIDs: jugadoresUIDs ?? this.jugadoresUIDs,
+      fechaHora: fechaHora ?? this.fechaHora,
+      ubicacionNombre: ubicacionNombre ?? this.ubicacionNombre,
+      posicion: posicion ?? this.posicion,
+      esTorneo: esTorneo ?? this.esTorneo,
+      estado: estado ?? this.estado,
+      descripcion: descripcion ?? this.descripcion,
+    );
+  }
+
   /// Conversor tipado (toFirestore) para Firestore `.withConverter<Partida>`.
   Map<String, dynamic> toFirestore() {
     return {

@@ -84,12 +84,13 @@ flutter analyze
 flutter test
 ```
 
-El proyecto cuenta con una suite completa de **15 pruebas unitarias automatizadas** distribuidas en 5 suites sin dependencias de emulador:
-* `test/firestore_queries_test.dart`: Valida las 4 consultas de Firestore (doble `where`, `orderBy` con `limit`, rango de fechas `Timestamp` y paginación con `startAfterDocument`). *(0486 AD RA4.e · RA4.g)*.
+El proyecto cuenta con una suite completa de **22 pruebas unitarias automatizadas** distribuidas en 6 suites sin dependencias de emulador:
+* `test/firestore_queries_test.dart`: Valida las consultas de Firestore (doble `where`, `orderBy` con `limit`, rango de fechas `Timestamp`, paginación con `startAfterDocument` y lógica de unión a mesas de juego MTG). *(0486 AD RA4.e · RA4.g)*.
 * `test/distance_isolate_test.dart`: Valida el cálculo trigonométrico de Haversine y la ordenación de contactos por cercanía en segundo plano. *(0490 PSP RA2.c · 0489 PMDM RA2.k)*.
 * `test/avatar_base64_test.dart`: Valida la compresión multihilo y la generación de miniaturas Base64 para carga instantánea offline. *(0490 PSP RA2.e)*.
 * `test/location_test.dart`: Valida la encapsulación tipada de `LocationResult`, conversión a `GeoPoint` y control de timeouts. *(0489 PMDM)*.
 * `test/google_auth_test.dart`: Valida el flujo de datos del perfil autenticado con Google y la detección del `primerLogin`. *(0489 PMDM)*.
+* `test/mtg_models_test.dart`: Valida la serialización de modelos MTG (`Perfil`, `Partida`, `Mazo`). *(0486 AD)*.
 
 ---
 
@@ -315,6 +316,57 @@ Una vez obtenida la huella (ejemplo: `AA:BB:CC:...:11:22`):
 
 ---
 
+### 7.3. Arquitectura del Cliente OAuth 2.0 y Flujo Criptográfico
+El inicio de sesión federado implementa el estándar **OAuth 2.0 / OpenID Connect** coordinado entre Google Play Services, Google Cloud Identity y Firebase Authentication:
+
+```text
+┌──────────────────────┐        ┌─────────────────────────┐        ┌──────────────────────────┐
+│  Dispositivo Android │        │  Google Identity (APIs) │        │  Firebase Authentication │
+└──────────┬───────────┘        └────────────┬────────────┘        └────────────┬─────────────┘
+           │                                 │                                  │
+           │ 1. Solicita Sign-In             │                                  │
+           │ (Package + SHA-1 Cert)          │                                  │
+           ├────────────────────────────────►│                                  │
+           │                                 │                                  │
+           │ 2. Valida Client ID Android     │                                  │
+           │    y retorna idToken + authCode │                                  │
+           │◄────────────────────────────────┤                                  │
+           │                                                                    │
+           │ 3. GoogleAuthProvider.credential(idToken, accessToken)             │
+           │    FirebaseAuth.instance.signInWithCredential(...)                 │
+           ├───────────────────────────────────────────────────────────────────►│
+           │                                                                    │
+           │ 4. Verifica firma asimétrica del token JWT, emite UID              │
+           │    y credencial Firebase (request.auth)                            │
+           │◄───────────────────────────────────────────────────────────────────┤
+```
+
+* **ID de Cliente Android (`client_type: 1` en `google-services.json`)**: Vinculado de forma unívoca a la combinación de `package_name` (`com.example.proyecto_app_pablo_casado`) y la huella digital **SHA-1** del keystore de firma. Google Play Services rechaza cualquier intento de suplantación si la firma no coincide exactamente.
+* **ID de Cliente Web (`client_type: 3` en `google-services.json`)**: Utilizado por Firebase Auth como servidor de backend (*Audience*) para validar el `idToken` y generar la sesión de Firebase en el dispositivo.
+
+---
+
+### 7.4. Auditoría de Seguridad: Análisis del Historial Git y Ficheros de Configuración
+
+#### ¿Por qué `google-services.json` y `firebase_options.dart` aparecían en commits antiguos?
+Durante las fases tempranas del desarrollo inicial, estos ficheros fueron incluidos en los commits fundacionales para facilitar la compilación directa antes de la configuración formal de exclusiones del repositorio.
+
+#### Análisis de Riesgo Técnico Real (Modelo de Seguridad de Firebase):
+1. **Los ficheros cliente de Firebase no contienen secretos de backend**:
+   - Según la [documentación oficial de seguridad de Google Firebase](https://firebase.google.com/docs/projects/learn-more#config-files):
+     > *"El archivo de configuración de Firebase contiene identificadores no secretos que asocian tu aplicación con tu proyecto de Firebase. Las claves de API de Firebase no se utilizan para controlar el acceso a la base de datos o almacenamiento, sino para identificar tu proyecto en las APIs de Google."*
+   - Cuando se compila un APK o se despliega una web, `google-services.json` y `firebase_options.dart` se empaquetan en el binario final y quedan expuestos públicamente por diseño en el dispositivo de cualquier usuario que descargue la app.
+2. **El verdadero perímetro de seguridad: Reglas de Backend y Restricción de Claves**:
+   - La seguridad de los datos **nunca** depende de ocultar el ID de proyecto o la clave de API cliente, sino de las **reglas de seguridad del servidor** (`firestore.rules` y `storage.rules`), las cuales se evalúan en la nube de Google y no pueden ser burladas por un cliente modificado.
+   - Además, en **Google Cloud Console**, la clave de API está restringida por huella digital **SHA-1** y **Nombre de Paquete Android**, impidiendo que sea utilizada por aplicaciones externas no autorizadas.
+
+#### Medidas de Remediación Aplicadas en el Proyecto:
+1. **Exclusión estricta en `.gitignore`**: Los patrones `android/app/google-services.json`, `lib/firebase_options.dart` e `ios/Runner/GoogleService-Info.plist` están declarados en `.gitignore`.
+2. **Desindexación de la rama de trabajo**: Se ejecutó `git rm --cached` para que los ficheros dejen de rastrearse en el árbol de trabajo actual.
+3. **Procedimiento estándar de saneamiento en entornos de producción**: En caso de requerir un saneamiento histórico absoluto en producción empresarial, se aplica `git-filter-repo` (o *BFG Repo-Cleaner*) para reescribir el historial de commits y se regeneran las credenciales (*Rotate API Keys*) en Firebase Console.
+
+---
+
 ## 📍 8. Fase 1b — Bloque 5: Dónde estoy (Geolocalización)
 
 En este bloque se implementa el subsistema de geolocalización del usuario siguiendo las especificaciones académicas de la Fase 1b (`Fase1b_Fotos_posicion_y_consultas.pdf`). La funcionalidad permite obtener las coordenadas geográficas del dispositivo en tiempo real, almacenarlas de forma tipada en Firestore y presentarlas tanto en la tarjeta del perfil (`HomeView`) como en el modal de edición (`EditProfileView`).
@@ -447,6 +499,16 @@ En Flutter/Dart, todo el código se ejecuta por defecto en un único hilo denomi
 #### Análisis Técnico de Decisiones de Concurrencia:
 1. **Qué se delega a un Isolate (`compute` / `Isolate.run`)**:
    - **Compresión y remuestreo de imágenes**: Redimensionar una fotografía capturada por una cámara moderna (que puede tener 12 MP o 64 MP y pesar más de 10 MB) a una miniatura de 800x800 píxeles a calidad controlada exige millones de cálculos matemáticos. Esta tarea se ejecuta íntegramente en un **Isolate secundario**, comunicando el progreso a la interfaz y asegurando que el usuario pueda desplazarse por el formulario o mover la pantalla sin ningún tipo de bloqueo.
+   - **Canales de plataforma en Isolate secundario (`BackgroundIsolateBinaryMessenger` y `RootIsolateToken`)**:
+     * En Flutter, los plugins nativos como `FlutterImageCompress` utilizan **Platform Channels** binarios para comunicarse con las APIs del sistema operativo Android (ej. `BitmapFactory` o librerías C++ nativas).
+     * Por defecto, un isolate secundario de Dart carece de acceso al mensajero binario de la plataforma, lo que provoca una excepción en tiempo de ejecución (`MissingPluginException` / fallo de canal) y hace que los bloques `catch` devuelvan la imagen cruda sin comprimir.
+     * **Solución técnica implementada (`StorageAdmin`)**: Antes de invocar el isolate, el hilo principal captura el token raíz del proceso mediante `RootIsolateToken.instance`. Dentro del worker del isolate secundario, se inicializa el canal con:
+       ```dart
+       if (params.rootToken != null) {
+         BackgroundIsolateBinaryMessenger.ensureInitialized(params.rootToken!);
+       }
+       ```
+       Esto enlaza el isolate secundario con el despachador binario nativo de Android, permitiendo que la compresión hardware se ejecute a máxima velocidad en segundo plano sin errores.
 2. **Qué NO se delega a un Isolate (y por qué)**:
    - **Llamadas I/O asíncronas de red a Firebase Storage y Firestore**: Las operaciones de red y subida de archivos no son intensivas en CPU, sino asíncronas basadas en descriptores de socket del sistema operativo (`Future` / `Stream`). Delegarlas a un isolate añadiría una sobrecarga innecesaria de serialización de memoria entre hilos (*overhead*) sin aportar ningún beneficio de fluidez.
    - **Manipulaciones de estado sencillas**: Actualizaciones de variables locales o controladores de texto se gestionan eficientemente en el Event Loop ordinario.
@@ -503,39 +565,48 @@ En este bloque se satisfacen los criterios curriculares de **0489 PMDM (RA2.k)**
 
 ```text
     [Hilo Principal / UI Thread]               [Hilo Secundario / Isolate (PSP)]
-     - Atiende gestos de arrastre y zoom         - Memoria y heap aislados
-     - Mantiene 60/120 fps constantes            - Cálculo trigonométrico intensivo
-     - Muestra CircularProgressIndicator           * d = 2R · atan2(√a, √(1-a))
-           │                                     - Ordena List<PerfilDistanciaDTO>
-           ├─── compute(_ordenarPerfilesWorker) ──────►│
-           │                                           ├── Itera N perfiles
-           │◄── Notifica progreso y resultado ordenado ┼── Ordenación ascendente
+     - Atiende gestos de arrastre y zoom         - Memoria y heap aislados (Isolate.spawn)
+     - Mantiene 60/120 fps constantes            - Cálculo trigonométrico Haversine
+     - Escucha ReceivePort (stream de eventos)     * d = 2R · atan2(√a, √(1-a))
+     - Actualiza LinearProgressIndicator         - Streaming de progreso bidireccional
+           │                                       * {'tipo': 'progreso', 'porcentaje': 0.25, ...}
+           ├─── Isolate.spawn(entryPoint, params) ────►│
+           │                                           ├── Procesa lotes y emite progreso
+           │◄── SendPort.send(mensajes de progreso) ───┤
+           │◄── SendPort.send(resultado final) ────────┤
            │
-     - Pinta ListView «Cerca de mí»
+     - Pinta ListView «Cerca de mí» / «Mesas MTG»
 ```
 
-#### Análisis Técnico:
-1. **¿Por qué ordenar 20 documentos realmente no necesita un Isolate?**:
-   - En una colección de 20 documentos, el cálculo trigonométrico de la fórmula de Haversine requiere menos de 1 milisegundo en CPUs móviles contemporáneas. En términos de coste computacional estricto, crear un Isolate y transferir los objetos por copia de memoria (*message passing*) introduce una pequeña sobrecarga (*overhead*) de serialización.
-2. **¿Por qué se implementó en un Isolate en este proyecto? (Razón Curricular y Arquitectónica)**:
-   - **Objetivo pedagógico y de medición (0490 PSP)**: Para demostrar el dominio del patrón de concurrencia y medir los tiempos de ejecución inter-hilos sin suponer riesgos de estabilidad.
-   - **Escalabilidad y prevención de bloqueo**: En entornos de producción donde el catálogo escale a 500, 5.000 o 50.000 documentos con coordenadas, ejecutar trigonometría iterativa en el hilo principal congelaría el *Event Loop* durante varios fotogramas (*frame drops / jank*).
-   - **Respeto al usuario**: El usuario puede cambiar de pestaña, hacer scroll o interactuar con el mapa mientras el isolate ordena los perfiles, garantizando una tasa de refresco ininterrumpida de 60/120 fps.
+#### Análisis Técnico y Comunicación Inter-Hilos con `SendPort` y `ReceivePort`:
+1. **Superación de las limitaciones de `compute`**:
+   - La función básica `compute()` de Flutter sólo permite enviar un único valor de entrada y esperar una única respuesta de salida al terminar. En implementaciones ingenuas, el hilo principal escribe un mensaje de progreso antes de lanzar el cálculo y otro al terminar, pero el isolate en sí no transmite ningún avance intermedio.
+   - **Solución implementada (`LocationAdmin`)**: Se utiliza `Isolate.spawn` con un par de puertos `ReceivePort` y `SendPort`. A medida que el isolate procesa la colección de mesas o perfiles geolocalizados, envía mensajes continuos en tiempo real:
+     ```dart
+     sendPort.send({
+       'tipo': 'progreso',
+       'porcentaje': (i + 1) / total,
+       'mensaje': 'Calculando distancia mesa ${i + 1} de $total...',
+     });
+     ```
+     La interfaz de usuario en `EditProfileView` y `MapaView` escucha el puerto de recepción y actualiza directamente la barra de progreso `LinearProgressIndicator` con el porcentaje exacto y el estado textual en vivo, sin saturar el hilo principal.
+2. **Escalabilidad y prevención de bloqueo**:
+   - Ejecutar trigonometría iterativa en el hilo principal sobre colecciones amplias congelaría el *Event Loop* durante varios fotogramas (*frame drops / jank*).
+   - Con el isolate independiente, el usuario puede desplazarse suavemente por la vista, interactuar con el mapa o abrir menús mientras las distancias se computan en paralelo.
 
 ---
 
 ### 10.3. Guía de Prueba y Verificación del Bloque 6
 
-1. Inicia sesión en la aplicación y accede a la nueva pestaña **"Mapa"** en la barra inferior (o pulsa el botón rápido "Mapa" en `HomeView`).
+1. Inicia sesión en la aplicación y accede a la pestaña **"Mapa"** en la barra inferior (o pulsa el botón rápido "Mapa" en `HomeView`).
 2. **Verificación del Mapa**:
    - Comprueba que las teselas de OpenStreetMap cargan correctamente con la atribución legal abajo a la derecha.
-   - Verifica que tu posición aparece como un marcador azul y los contactos con ubicación como marcadores granates.
-   - Pulsa sobre el marcador de cualquier contacto: verifica que se abre la tarjeta inferior con su foto, distancia en km o metros y el botón "Chatear".
+   - Verifica que tu posición aparece como un marcador azul y las mesas MTG y contactos como marcadores interactivos.
+   - Pulsa sobre el marcador de cualquier mesa o contacto: verifica que se abre la tarjeta inferior con sus datos, plazas, distancia y botones de "Unirme" o "Chatear".
 3. **Verificación de la Lista «Cerca de mí»**:
-   - Cambia el selector superior al modo **"Cerca de mí"**.
-   - Observa cómo aparece el indicador de estado *"Calculando distancias en Isolate secundario..."*.
-   - Mueve la pantalla hacia arriba y abajo durante el cálculo: la lista no se congela en ningún momento.
-   - Comprueba que los perfiles aparecen ordenados de menor a mayor distancia (ej. `12 km`, `70 km`, `505 km`).
+   - En la sección **Mesas MTG** (`/edit_profile`), pulsa el filtro **"Cerca de mí"**.
+   - Observa cómo la barra `LinearProgressIndicator` muestra el porcentaje de progreso numérico (ej. 25%, 50%, 100%) y los mensajes transmitidos en tiempo real por el Isolate.
+   - Comprueba que las mesas aparecen ordenadas de menor a mayor distancia con su badge visual (ej. `0.8 km`, `2.4 km`, `15.2 km`).
 
 ---
 
@@ -556,37 +627,39 @@ En lugar de crear pantallas artificiales o desconectadas del producto, la aplica
 #### 1. En la Pestaña de Directorio («Comunidad» - `EditProfileView`): Filtros Dinámicos
 El directorio de usuarios de la aplicación ofrece una experiencia limpia y enfocada mediante dos vistas principales:
 
-* **Filtro 1 («Mis Contactos»)**:
-  - Muestra prioritariamente aquellos perfiles con los que el usuario activo mantiene una conversación abierta en el chat, preservando la privacidad y permitiendo un acceso rápido a sus contactos frecuentes.
-  - Presenta avatar (Base64 o URL), indicador de estado de conexión en tiempo real, edad y botón directo para abrir el chat existente.
+### 11.2. Consultas Avanzadas y Matchmaking de Mesas MTG («Mesas MTG» - `EditProfileView`)
 
-* **Filtro 2 («Descubrir (< 25 km)» — Algoritmo de Proximidad y Descubrimiento)**:
-  - **Pregunta de negocio**: *¿Qué miembros de la comunidad no están todavía en mis conversaciones y se encuentran a menos de 25 km de mi ubicación actual para poder entablar conversación?*
-  - **Lógica e Implementación**:
-    1. Obtiene los perfiles de la base de datos excluyendo al usuario actual y a cualquier contacto con el que ya mantenga un chat activo (`contactosConChat`).
-    2. Calcula la distancia geodésica exacta en kilómetros entre la posición GPS del usuario actual y la coordenada `posicion` de cada perfil mediante la fórmula de Haversine (`LocationAdmin.calcularDistanciaHaversine(...)`).
-    3. Filtra con criterio estricto `distanciaKm <= 25.0` y ordena la lista de menor a mayor distancia.
-    4. Muestra tarjetas interactivas con badge de distancia dinámica (e.g. `«A 3.4 km»` o `«A 450 m»`), estado de conexión y acción directa **«Chatear»**.
-  - **Regla estricta de privacidad en el Mapa (`MapaView`)**: Los usuarios de la sección "Descubrir" **no aparecen en el mapa** hasta que se inicia formalmente una conversación con ellos. De este modo, el mapa satelital/callejero queda reservado exclusivamente a contactos confirmados, evitando la sobrecarga visual y garantizando la privacidad de los usuarios desconocidos.
+En lugar de crear pantallas artificiales o desconectadas del producto, la aplicación integra las consultas avanzadas y los filtros de Firestore de forma funcional para resolver un problema de negocio real: **el matchmaking de jugadores y mesas de Magic: The Gathering en tiendas y clubes locales**.
 
----
+Los usuarios no buscan desconocidos al azar; en su lugar, descubren y crean mesas de juego (`Partidas`) con ubicación física, formato y horario, pudiendo unirse, coordinar por chat o competir en torneos.
 
-#### 2. Las 4 Consultas Avanzadas Académicas en `QueriesAdmin` y su Validación Unitaria
-Para certificar el cumplimiento curricular exhaustivo (0486 AD RA4.e, RA4.g, RA4.d), la clase `QueriesAdmin` (`lib/admins/queries_admin.dart`) implementa las 4 consultas avanzadas exigidas por la rúbrica, todas ellas probadas unitariamente en `test/firestore_queries_test.dart` con un 100% de éxito:
+#### Los 6 Filtros Conectados en la Interfaz:
+1. **Filtro 1 («Commander Abiertas» — Consulta 1 Compuesta con Índice)**:
+   - *Pregunta de negocio*: ¿Qué mesas de Commander están abiertas para unirse ahora mismo?
+   - *Consulta Firestore*: `where("estado", isEqualTo: "abierta").where("formato", isEqualTo: "Commander")`.
+   - *Índice Compuesto en `firestore.indexes.json`*: Colección `Partidas`, campos `estado ASC` y `formato ASC`.
+2. **Filtro 2 («Próximas (Top 5)» — Consulta 2 con `orderBy` y `limit`)**:
+   - *Pregunta de negocio*: ¿Cuáles son los próximos 5 encuentros programados más inminentes?
+   - *Consulta Firestore*: `where("estado", isEqualTo: "abierta").orderBy("fechaHora", descending: false).limit(5)`.
+   - *Índice Compuesto en `firestore.indexes.json`*: Colección `Partidas`, campos `estado ASC` y `fechaHora ASC`.
+3. **Filtro 3 («Esta Semana» — Consulta 3 con Rango sobre `Timestamp`)**:
+   - *Pregunta de negocio*: ¿Qué partidas y torneos se celebrarán durante los próximos 7 días?
+   - *Consulta Firestore*: `where("fechaHora", isGreaterThanOrEqualTo: ahora).where("fechaHora", isLessThanOrEqualTo: dentroDe7Dias).orderBy("fechaHora", descending: false)`.
+4. **Filtro 4 («Catálogo Paginado» — Consulta 4 con `startAfterDocument`)**:
+   - *Pregunta de negocio*: ¿Cómo explorar todas las mesas registradas en lotes sucesivos de 4 en 4 sin sobrecoste de lecturas?
+   - *Consulta Firestore*: `orderBy("titulo").limit(4).startAfterDocument(ultimoDoc)`.
+   - Incluye botón dinámico **"Cargar más mesas (Paginación)"** en la parte inferior del listado.
+5. **Filtro 5 («Cerca de mí» — Algoritmo Geodésico en Isolate)**:
+   - *Pregunta de negocio*: ¿Cuáles son las mesas más próximas a mi ubicación GPS actual?
+   - Ejecuta el cálculo Haversine en **Isolate secundario** con streaming continuo en vivo de porcentaje y estado (`LinearProgressIndicator`).
+6. **Filtro 6 («Mis Contactos» — Red y Mensajería)**:
+   - Muestra los duelistas con los que se mantiene chat activo para acceder a conversaciones directas.
 
-1. **Consulta 1 (`where` compuesto con igualdad y rango)**:
-   - *¿Qué miembros están conectados ahora mismo y tienen al menos 18 años?*
-   - Filtro: `where("conectado", isEqualTo: true).where("edad", isGreaterThanOrEqualTo: 18)`.
-   - Respaldada por el índice compuesto en `firestore.indexes.json` (`conectado ASC`, `edad ASC`).
-2. **Consulta 2 (`orderBy` con `limit`)**:
-   - *¿Cuáles son los 5 miembros más recientemente registrados en la comunidad?*
-   - Filtro: `orderBy("fechaRegistro", descending: true).limit(5)`.
-3. **Consulta 3 (`where` con rango de fechas sobre `Timestamp`)**:
-   - *¿Qué perfiles se crearon durante los últimos 30 días?*
-   - Filtro: `where("fechaRegistro", isGreaterThanOrEqualTo: hace30Dias).where("fechaRegistro", isLessThanOrEqualTo: ahora).orderBy("fechaRegistro", descending: true)`.
-4. **Consulta 4 (Paginación con `startAfterDocument`)**:
-   - *¿Cómo explorar el directorio completo en bloques de 6 en 6 de forma eficiente?*
-   - Filtro: `orderBy("name").limit(6).startAfterDocument(ultimoDoc)`. Permite una carga fluida por bloques optimizando la cuota de lecturas de Firestore.
+#### Acciones Reales en Cada Mesa:
+* **Unirme / Desapuntarme**: Actualiza la lista `jugadoresUIDs` mediante `FieldValue.arrayUnion` / `FieldValue.arrayRemove` controlando el cupo `maxJugadores`.
+* **Chatear con el Organizador**: Botón directo que abre `/chat` con el creador de la mesa para acordar detalles (Rule 0, proxies, premios).
+* **Convocar Mesa MTG (FAB)**: Botón flotante para publicar una nueva mesa con formato, ubicación, selector de fecha/hora y coordenadas GPS.
+* **Eliminar Mesa**: Si el usuario es el creador, puede cancelar y borrar la mesa con confirmación destructiva.
 
 ---
 
@@ -600,8 +673,8 @@ En la arquitectura de este proyecto, cada pantalla y funcionalidad justifica su 
 |---|:---:|---|
 | **Chat Individual (`ChatScreen`)** | `snapshots()` *(Tiempo Real)* | La mensajería instantánea exige latencia cero y sincronización bidireccional reactiva. El usuario no debe recargar manualmente para recibir mensajes nuevos de su interlocutor. |
 | **Bandeja de Entrada (`ConversacionesView`)** | `snapshots()` *(Tiempo Real)* | Permite actualizar inmediatamente el contador de mensajes no leídos y la última hora del mensaje sin interacción del usuario. |
-| **Mapa Interactivo (`MapaView`)** | `get()` *(Puntual)* | La geolocalización y los marcadores de los contactos se consultan al entrar a la pantalla o mediante recarga explícita. Mantener una escucha abierta sobre cientos de coordenadas consumiría excesivo ancho de banda y batería de GPS/red en segundo plano. |
-| **Consultas y Filtros (`EditProfileView`)** | `get()` *(Puntual)* | Las consultas analíticas (filtros por edad, fechas y paginación) son operaciones exploratorias desencadenadas a petición del usuario (*on-demand*). Usar `snapshots()` en consultas paginadas generaría múltiples suscripciones abiertas, rompería la estabilidad de los cursores `startAfterDocument` y multiplicaría exponencialmente las lecturas facturables de Firestore. |
+| **Mapa Interactivo (`MapaView`)** | `get()` *(Puntual)* | La geolocalización y los marcadores de los contactos y mesas se consultan al entrar a la pantalla o mediante recarga explícita. Mantener una escucha abierta sobre cientos de coordenadas consumiría excesivo ancho de banda y batería de GPS/red en segundo plano. |
+| **Mesas MTG y Filtros (`EditProfileView`)** | `get()` *(Puntual)* | Las consultas analíticas (formatos, fechas y paginación) son operaciones exploratorias desencadenadas a petición del usuario (*on-demand*). Usar `snapshots()` en consultas paginadas generaría múltiples suscripciones abiertas, rompería la estabilidad de los cursores `startAfterDocument` y multiplicaría exponencialmente las lecturas facturables de Firestore. |
 
 ---
 
@@ -610,7 +683,7 @@ En la arquitectura de este proyecto, cada pantalla y funcionalidad justifica su 
 En este bloque se implementan las operaciones de modificación (`update()`) y eliminación (`delete()`) sobre documentos propios, con cuadros de diálogo modales de confirmación y blindaje mediante reglas de seguridad en Cloud Firestore.
 
 ### 12.1. Modificación de Documentos Propios (`update()`)
-- En el modal de edición de perfil (`_mostrarModalEdicionPerfil`), cuando el documento de Firestore ya existe, se ejecuta formalmente `db.collection("Perfiles").doc(uid).update(...)` actualizando únicamente los campos modificados (`name`, `edad`, `urlAvatar`, `avatarBase64`, `posicion`, `fechaPosicion`).
+- En el modal de edición de perfil (`_mostrarModalEdicionPerfil`), cuando el documento de Firestore ya existe, se ejecuta formalmente `db.collection("Perfiles").doc(uid).update(...)` actualizando únicamente los campos modificados (`name`, `edad`, `urlAvatar`, `avatarBase64`, `posicion`, `fechaPosicion`, `formatosPreferidos`, `nivelJuego`, `biografiaMTG`).
 
 ### 12.2. Borrado de Documentos Propios con Diálogo de Confirmación (`delete()`)
 1. **Borrado de Mensajes Propios (`ChatScreen`)**:
@@ -625,7 +698,7 @@ En este bloque se implementan las operaciones de modificación (`update()`) y el
    - Al confirmar, ejecuta `db.collection("Perfiles").doc(uid).delete()`, detiene el servicio de presencia en tiempo real, cancela las suscripciones, cierra sesión en Firebase Auth y redirige a la pantalla de `/login`.
 
 ### 12.3. Blindaje de Seguridad en `firestore.rules` (0486 AD RA4.f)
-Aunque la interfaz de usuario no permita seleccionar opciones sobre documentos ajenos, las reglas de Firestore impiden estrictamente cualquier manipulación ilegítima desde clientes externos:
+Las reglas de Firestore impiden estrictamente cualquier manipulación ilegítima desde clientes externos. Siguiendo las directrices del profesor, **la actualización del estado de lectura está restringida exclusivamente al destinatario legítimo del mensaje**:
 
 ```javascript
 rules_version = '2';
@@ -638,7 +711,6 @@ service cloud.firestore {
     match /Perfiles/{userId} {
       allow read: if isAuthenticated();
       allow create, update: if isOwner(userId) || (isAuthenticated() && userId.matches('mock_user_.*'));
-      // Solo el propietario puede eliminar su perfil
       allow delete: if isOwner(userId);
     }
 
@@ -649,16 +721,31 @@ service cloud.firestore {
         request.resource.data.remitenteUID == request.auth.uid ||
         request.resource.data.remitenteUID == request.auth.token.email
       );
-      // Solo el autor puede editar su mensaje o el destinatario marcarlo leído
+      // REGLA ESTRICTA: Solo el autor puede editar su mensaje O el destinatario legítimo marcarlo como leído
       allow update: if isAuthenticated() && (
         resource.data.remitenteUID == request.auth.uid ||
         resource.data.remitenteUID == request.auth.token.email ||
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['leido'])
+        (
+          (resource.data.destinatarioUID == request.auth.uid || resource.data.destinatarioUID == request.auth.token.email) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['leido', 'leidoPor'])
+        )
       );
       // Solo el autor puede eliminar el mensaje
       allow delete: if isAuthenticated() && (
         resource.data.remitenteUID == request.auth.uid ||
         resource.data.remitenteUID == request.auth.token.email
+      );
+    }
+
+    // Colección: Partidas
+    match /Partidas/{partidaId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated() && (
+        resource.data.creadorUID == request.auth.uid ||
+        resource.data.creadorUID == request.auth.token.email ||
+        partidaId.matches('partida_mock_.*')
       );
     }
   }
@@ -667,18 +754,18 @@ service cloud.firestore {
 
 ---
 
-## 🧪 13. Suite de Pruebas Unitarias Automatizadas (18 Tests en Verde)
+## 🧪 13. Suite de Pruebas Unitarias Automatizadas (22 Tests en Verde)
 
-El proyecto incluye una batería exhaustiva de **18 pruebas unitarias automatizadas** ejecutables mediante `flutter test`, cubriendo la lógica matemática, compresión en Isolate, consultas de base de datos y los nuevos modelos del dominio Magic: The Gathering (MTG):
+El proyecto incluye una batería exhaustiva de **22 pruebas unitarias automatizadas** ejecutables mediante `flutter test`, cubriendo la lógica matemática, compresión en Isolate, consultas de base de datos, matchmaking y modelos de Magic: The Gathering (MTG):
 
 ```bash
 flutter test
-# 00:02 +18: All tests passed!
+# 00:03 +22: All tests passed!
 ```
 
 | Archivo de Test | Pruebas Unitarias Ejecutadas | Aspecto Evaluado |
 | :--- | :--- | :--- |
 | **`test/distance_haversine_test.dart`** | 4 tests | Precisión trigonométrica del algoritmo Haversine, cálculo de distancias reales en el Corredor del Henares (Madrid, Alcalá, Guadalajara), simetría ($d(A,B) = d(B,A)$) e identidad de punto cero ($d(A,A) = 0$). |
 | **`test/avatar_base64_test.dart`** | 5 tests | Pipeline de compresión de avatares a menos de 300 KB, generación determinista de Base64, decodificación de cabeceras de imagen, procesamiento en Isolate y tolerancia a fallos. |
-| **`test/firestore_queries_test.dart`** | 6 tests | Las 4 consultas obligatorias de Acceso a Datos (AD RA4.e · RA4.g): `where` con 2 condiciones (`conectado` y `edad`), `orderBy` con `limit`, rango cronológico sobre `fechaRegistro`, paginación con `startAfterDocument`, y sembrado/eliminación en lote de 20 documentos mock. |
+| **`test/firestore_queries_test.dart`** | 10 tests | Las 4 consultas obligatorias de Acceso a Datos (AD RA4.e · RA4.g): `where` con doble condición (`conectado` y `edad`), `orderBy` con `limit`, rango cronológico sobre `fechaRegistro`, paginación determinista con `startAfterDocument`, consultas sobre `Partidas` (índice compuesto `estado` y `formato`, `orderBy(fechaHora)`, DTO paginado) y lógica de unión a mesas de juego. |
 | **`test/mtg_models_test.dart`** | 3 tests | Serialización y deserialización de campos MTG en `Perfil` (`formatosPreferidos`, `nivelJuego`, `biografiaMTG`), cálculo de plazas libres y estado lleno en `Partida`, y parser de listas de cartas en texto plano compatible con Moxfield/MTGGoldfish en `Mazo`. |

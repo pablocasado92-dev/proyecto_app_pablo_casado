@@ -72,9 +72,9 @@ class _InsBotBarStyle1State extends State<InsBotBarStyle1> {
           label: 'Principal',
         ),
         const NavigationDestination(
-          selectedIcon: Icon(Icons.people_rounded),
-          icon: Icon(Icons.people_outline_rounded),
-          label: 'Perfiles',
+          selectedIcon: Icon(Icons.groups_rounded),
+          icon: Icon(Icons.groups_outlined),
+          label: 'Mesas MTG',
         ),
         const NavigationDestination(
           selectedIcon: Icon(Icons.map_rounded),
